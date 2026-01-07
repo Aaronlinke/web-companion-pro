@@ -3,7 +3,7 @@ import { Code2, Play, FileCode, Bot, Download, RotateCcw, RotateCw } from 'lucid
 import { CodeEditor } from '@/components/editor/CodeEditor';
 import { Preview } from '@/components/editor/Preview';
 import { TabBar, Tab } from '@/components/editor/TabBar';
-import { AiWorkbench, AGENTS, ChatMessage, Agent } from '@/components/ai/AiWorkbench';
+import { AiWorkbench } from '@/components/ai/AiWorkbench';
 
 const initialCode = `<!DOCTYPE html>
 <html lang="de">
@@ -53,12 +53,6 @@ const Index: React.FC = () => {
 
   const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId), [tabs, activeTabId]);
 
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isFusing, setIsFusing] = useState(false);
-  const [agentStatuses, setAgentStatuses] = useState<string[]>(Array(AGENTS.length).fill('ready'));
-  const [agentLogs, setAgentLogs] = useState<string[]>([]);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-
   const updateActiveTabCode = useCallback((newCode: string, addToHistory: boolean = true) => {
     setTabs(prevTabs => prevTabs.map(tab => {
       if (tab.id === activeTabId) {
@@ -100,87 +94,32 @@ const Index: React.FC = () => {
     }));
   }, [activeTabId]);
 
-  const handleApplyCode = (codeToApply: string, replace: boolean = true) => {
-    if (!activeTab) return;
-    const extracted = codeToApply.match(/```(?:html)?\n([\s\S]+?)```/)?.[1] || codeToApply;
-    updateActiveTabCode(extracted);
-  };
+  const handleApplyCode = useCallback((code: string) => {
+    updateActiveTabCode(code);
+  }, [updateActiveTabCode]);
 
-  // Mock AI functions (will need Lovable Cloud for real AI)
-  const runAiCollaboration = async (agents: Agent[]) => {
-    if (!activeTab) return;
-    setIsProcessing(true);
-    setAgentLogs(['LOCKING_BASE_LOGIC...']);
-
-    for (let i = 0; i < agents.length; i++) {
-      const agentIndex = AGENTS.findIndex(a => a.name === agents[i].name);
-      setAgentStatuses(prev => { const s = [...prev]; s[agentIndex] = 'thinking'; return s; });
-      setAgentLogs(prev => [...prev, `Elite_Worker_${agents[i].name}_Processing...`]);
-      
-      // Simulate processing
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setAgentStatuses(prev => { const s = [...prev]; s[agentIndex] = 'done'; return s; });
-    }
-    
-    setAgentLogs(prev => [...prev, 'SYNTHESIS_COMPLETE.']);
-    setIsProcessing(false);
-    
-    // Reset statuses after delay
-    setTimeout(() => {
-      setAgentStatuses(Array(AGENTS.length).fill('ready'));
-    }, 2000);
-  };
-
-  const runAiFusion = async () => {
-    setIsProcessing(true);
-    setIsFusing(true);
-    setAgentLogs(['INIT_DEEP_MERGE...']);
-    
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
+  const handleFusionComplete = useCallback((code: string, title: string) => {
     const newTab: Tab = {
       id: nextTabId,
-      title: 'MASTER_SYNTHESIS.html',
-      code: '<!-- FUSED_CONTENT -->\n' + tabs.map(t => `<!-- From: ${t.title} -->\n${t.code}`).join('\n\n'),
-      history: [''],
+      title,
+      code,
+      history: [code],
       historyIndex: 0
     };
-    newTab.history = [newTab.code];
-    
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(nextTabId);
     setNextTabId(prev => prev + 1);
-    setAgentLogs(prev => [...prev, 'SYNTHESIS_STABLE_100.']);
-    
-    setIsFusing(false);
-    setIsProcessing(false);
-  };
-
-  const handleSendMessage = async (message: string) => {
-    if (!activeTab) return;
-    setIsProcessing(true);
-    setChatMessages(prev => [...prev, { sender: 'user', text: message }]);
-    
-    // Simulate AI response
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setChatMessages(prev => [...prev, {
-      sender: 'ai',
-      text: `PROCESSING_COMMAND: "${message}"\n\nTo enable full AI capabilities, connect Lovable Cloud for backend processing.\n\nCurrent code analysis:\n- Lines: ${activeTab.code.split('\n').length}\n- Size: ${activeTab.code.length} bytes`
-    }]);
-    
-    setIsProcessing(false);
-  };
+  }, [nextTabId]);
 
   const handleAddTab = () => {
     const t: Tab = {
       id: nextTabId,
       title: `ext_node_${nextTabId}.html`,
-      code: '<!-- RAW_DATA_ENTRY -->',
-      history: ['<!-- RAW_DATA_ENTRY -->'],
+      code: '<!-- RAW_DATA_ENTRY -->\n<!DOCTYPE html>\n<html>\n<head>\n  <script src="https://cdn.tailwindcss.com"></script>\n</head>\n<body class="bg-slate-900 text-white p-8">\n  <h1 class="text-2xl">Neuer Tab</h1>\n</body>\n</html>',
+      history: [''],
       historyIndex: 0
     };
+    t.history = [t.code];
     setTabs([...tabs, t]);
     setActiveTabId(nextTabId);
     setNextTabId(nextTabId + 1);
@@ -299,17 +238,10 @@ const Index: React.FC = () => {
         </div>
         <div className={`flex-1 flex-col ${mobileTab === 'ai' ? 'flex' : 'hidden md:flex'} bg-elite-dark border-t md:border-t-0 md:border-l border-primary/30`}>
           <AiWorkbench
-            onStartCollaboration={runAiCollaboration}
-            onStartFusion={runAiFusion}
-            isProcessing={isProcessing}
-            isFusing={isFusing}
-            agentStatuses={agentStatuses}
-            agentLogs={agentLogs}
-            canFuse={tabs.length > 1}
-            chatMessages={chatMessages}
-            onSendMessage={handleSendMessage}
+            currentCode={activeTab?.code || ''}
             onApplyCode={handleApplyCode}
             projectTabs={tabs}
+            onFusionComplete={handleFusionComplete}
           />
         </div>
       </main>
