@@ -8,32 +8,26 @@ import 'prismjs/components/prism-javascript';
 interface CodeEditorProps {
   value: string;
   onChange: (val: string) => void;
-  onCursorChange?: (position: number) => void;
 }
 
 const highlightCode = (code: string) =>
   Prism.highlight(code, Prism.languages.markup, 'html');
 
-export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, onCursorChange }) => {
-  const handleValueChange = (code: string) => {
-    onChange(code);
-  };
-
+export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange }) => {
   return (
-    <div className="flex-1 flex relative bg-elite-black overflow-auto">
+    <div className="h-full overflow-auto bg-background">
       <Editor
         value={value}
-        onValueChange={handleValueChange}
+        onValueChange={onChange}
         highlight={highlightCode}
-        padding={16}
+        padding={12}
         tabSize={2}
         insertSpaces={true}
-        className="flex-1 bg-elite-black text-elite-text-bright outline-none resize-none focus:ring-0"
+        className="min-h-full text-foreground outline-none"
         style={{
-          fontFamily: '"JetBrains Mono", monospace',
-          fontSize: 13,
-          lineHeight: '1.7em',
-          minHeight: '100%',
+          fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+          fontSize: 12,
+          lineHeight: '1.6',
         }}
         textareaClassName="focus:outline-none"
       />

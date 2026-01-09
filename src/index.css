@@ -2,57 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    --background: 222 84% 2%;
-    --foreground: 199 89% 48%;
+    --background: 220 20% 4%;
+    --foreground: 210 20% 90%;
 
-    --card: 222 84% 3%;
-    --card-foreground: 199 89% 48%;
+    --card: 220 20% 6%;
+    --card-foreground: 210 20% 90%;
 
-    --popover: 222 84% 2%;
-    --popover-foreground: 199 89% 48%;
+    --popover: 220 20% 5%;
+    --popover-foreground: 210 20% 90%;
 
-    --primary: 199 89% 48%;
-    --primary-foreground: 0 0% 0%;
+    --primary: 200 100% 50%;
+    --primary-foreground: 220 20% 4%;
 
-    --secondary: 217 32% 8%;
-    --secondary-foreground: 199 89% 48%;
+    --secondary: 220 15% 10%;
+    --secondary-foreground: 210 20% 80%;
 
-    --muted: 217 32% 12%;
-    --muted-foreground: 199 50% 30%;
+    --muted: 220 15% 15%;
+    --muted-foreground: 210 15% 45%;
 
-    --accent: 199 89% 48%;
-    --accent-foreground: 0 0% 0%;
+    --accent: 200 100% 50%;
+    --accent-foreground: 220 20% 4%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 70% 50%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 199 89% 20%;
-    --input: 199 89% 15%;
-    --ring: 199 89% 48%;
+    --border: 220 15% 15%;
+    --input: 220 15% 12%;
+    --ring: 200 100% 50%;
 
-    --radius: 0.25rem;
+    --radius: 0.375rem;
 
-    /* Custom Elite tokens */
-    --elite-black: 0 0% 2%;
-    --elite-dark: 222 84% 2%;
-    --elite-surface: 222 84% 4%;
-    --elite-glow: 199 89% 48%;
-    --elite-glow-dim: 199 50% 25%;
-    --elite-text-bright: 199 89% 70%;
-    --elite-text-dim: 199 40% 35%;
-
-    --sidebar-background: 222 84% 2%;
-    --sidebar-foreground: 199 89% 48%;
-    --sidebar-primary: 199 89% 48%;
-    --sidebar-primary-foreground: 0 0% 0%;
-    --sidebar-accent: 217 32% 10%;
-    --sidebar-accent-foreground: 199 89% 48%;
-    --sidebar-border: 199 89% 15%;
-    --sidebar-ring: 199 89% 48%;
+    --sidebar-background: 220 20% 5%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 200 100% 50%;
+    --sidebar-primary-foreground: 220 20% 4%;
+    --sidebar-accent: 220 15% 12%;
+    --sidebar-accent-foreground: 210 20% 80%;
+    --sidebar-border: 220 15% 15%;
+    --sidebar-ring: 200 100% 50%;
   }
 }
 
@@ -62,107 +53,83 @@
   }
 
   body {
-    @apply bg-background text-foreground font-mono;
-    font-family: 'JetBrains Mono', monospace;
-    overscroll-behavior-y: contain;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
   }
 
-  /* Custom scrollbar */
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
   ::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    background: hsl(var(--elite-dark));
+    background: hsl(var(--background));
   }
 
   ::-webkit-scrollbar-thumb {
-    background: hsl(var(--elite-glow-dim));
-    border-radius: 10px;
+    background: hsl(var(--muted));
+    border-radius: 3px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--elite-glow));
+    background: hsl(var(--muted-foreground));
   }
 }
 
-@layer components {
-  .elite-glow {
-    box-shadow: 0 0 15px hsl(var(--elite-glow) / 0.3);
-  }
+/* Prism Syntax Highlighting - Clean & Professional */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: hsl(220 10% 40%);
+  font-style: italic;
+}
 
-  .elite-glow-strong {
-    box-shadow: 0 0 30px hsl(var(--elite-glow) / 0.4), 0 0 60px hsl(var(--elite-glow) / 0.2);
-  }
+.token.punctuation {
+  color: hsl(210 15% 60%);
+}
 
-  .elite-border {
-    border: 1px solid hsl(var(--elite-glow) / 0.3);
-  }
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: hsl(340 80% 65%);
+}
 
-  .elite-border-bright {
-    border: 1px solid hsl(var(--elite-glow) / 0.5);
-  }
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: hsl(140 60% 55%);
+}
 
-  .elite-surface {
-    background: hsl(var(--elite-surface));
-  }
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: hsl(35 90% 60%);
+}
 
-  .elite-text-tracking {
-    letter-spacing: 0.4em;
-    text-transform: uppercase;
-  }
+.token.atrule,
+.token.keyword,
+.token.attr-value,
+.token.function,
+.token.class-name {
+  color: hsl(200 100% 60%);
+}
 
-  /* Prism syntax highlighting */
-  .token.comment,
-  .token.prolog,
-  .token.doctype,
-  .token.cdata {
-    color: hsl(215 20% 40%);
-  }
-
-  .token.punctuation {
-    color: hsl(215 25% 60%);
-  }
-
-  .token.property,
-  .token.tag,
-  .token.boolean,
-  .token.number,
-  .token.constant,
-  .token.symbol,
-  .token.deleted {
-    color: hsl(270 80% 65%);
-  }
-
-  .token.selector,
-  .token.attr-name,
-  .token.string,
-  .token.char,
-  .token.builtin,
-  .token.inserted {
-    color: hsl(142 70% 50%);
-  }
-
-  .token.operator,
-  .token.entity,
-  .token.url,
-  .language-css .token.string,
-  .style .token.string {
-    color: hsl(25 95% 55%);
-  }
-
-  .token.atrule,
-  .token.keyword,
-  .token.attr-value,
-  .token.function,
-  .token.class-name {
-    color: hsl(217 90% 60%);
-  }
-
-  .token.regex,
-  .token.important,
-  .token.variable {
-    color: hsl(48 95% 55%);
-  }
+.token.regex,
+.token.important,
+.token.variable {
+  color: hsl(50 90% 60%);
 }

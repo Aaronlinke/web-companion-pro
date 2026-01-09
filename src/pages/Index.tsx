@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Code2, Play, FileCode, Bot, Download, RotateCcw, RotateCw } from 'lucide-react';
+import { Code2, Play, FileCode, Bot, Download, RotateCcw, RotateCw, Zap, Terminal, Eye } from 'lucide-react';
 import { CodeEditor } from '@/components/editor/CodeEditor';
 import { Preview } from '@/components/editor/Preview';
 import { TabBar, Tab } from '@/components/editor/TabBar';
 import { AiWorkbench } from '@/components/ai/AiWorkbench';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 const initialCode = `<!DOCTYPE html>
 <html lang="de">
@@ -49,7 +50,8 @@ const Index: React.FC = () => {
   }]);
   const [activeTabId, setActiveTabId] = useState<number>(1);
   const [nextTabId, setNextTabId] = useState(2);
-  const [mobileTab, setMobileTab] = useState<'editor' | 'preview' | 'ai'>('editor');
+  const [showPreview, setShowPreview] = useState(true);
+  const [showAi, setShowAi] = useState(true);
 
   const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId), [tabs, activeTabId]);
 
@@ -114,8 +116,8 @@ const Index: React.FC = () => {
   const handleAddTab = () => {
     const t: Tab = {
       id: nextTabId,
-      title: `ext_node_${nextTabId}.html`,
-      code: '<!-- RAW_DATA_ENTRY -->\n<!DOCTYPE html>\n<html>\n<head>\n  <script src="https://cdn.tailwindcss.com"></script>\n</head>\n<body class="bg-slate-900 text-white p-8">\n  <h1 class="text-2xl">Neuer Tab</h1>\n</body>\n</html>',
+      title: `module_${nextTabId}.html`,
+      code: '<!DOCTYPE html>\n<html>\n<head>\n  <script src="https://cdn.tailwindcss.com"></script>\n</head>\n<body class="bg-slate-900 text-white p-8">\n  <h1 class="text-2xl font-bold">Neues Modul</h1>\n</body>\n</html>',
       history: [''],
       historyIndex: 0
     };
@@ -165,117 +167,121 @@ const Index: React.FC = () => {
     }
   };
 
+  const canUndo = (activeTab?.historyIndex || 0) > 0;
+  const canRedo = (activeTab?.historyIndex || 0) < (activeTab?.history.length || 0) - 1;
+
   return (
-    <div className="flex flex-col h-screen overflow-hidden selection:bg-primary selection:text-primary-foreground">
-      {/* Header */}
-      <header className="flex items-center justify-between px-4 py-2 bg-elite-dark border-b border-primary/30 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="p-1 elite-border elite-glow">
-            <Code2 size={16} className="text-primary" />
+    <div className="flex flex-col h-screen overflow-hidden bg-background">
+      {/* Compact Header */}
+      <header className="flex items-center justify-between px-3 py-1.5 bg-card border-b border-border shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <Zap size={14} className="text-primary" />
+            <span className="text-xs font-bold text-primary tracking-wider">ELITE</span>
           </div>
-          <h1 className="font-black text-[10px] elite-text-tracking text-primary hidden sm:block">
-            Elite_Nexus_Runner
-          </h1>
+          
+          {/* Inline Tabs */}
+          <div className="flex items-center border-l border-border pl-3">
+            <TabBar
+              tabs={tabs}
+              activeTabId={activeTabId}
+              onSelectTab={setActiveTabId}
+              onCloseTab={handleCloseTab}
+              onAddTab={handleAddTab}
+            />
+          </div>
         </div>
-        <div className="flex items-center gap-1 sm:gap-4">
-          <div className="flex items-center gap-1 bg-elite-black p-0.5 elite-border">
-            <button
-              onClick={handleUndo}
-              disabled={(activeTab?.historyIndex || 0) <= 0}
-              className="p-1.5 hover:bg-primary hover:text-primary-foreground transition-colors disabled:opacity-20 text-primary"
-            >
-              <RotateCcw size={14} />
-            </button>
-            <button
-              onClick={handleRedo}
-              disabled={(activeTab?.historyIndex || 0) >= (activeTab?.history.length || 0) - 1}
-              className="p-1.5 hover:bg-primary hover:text-primary-foreground transition-colors disabled:opacity-20 text-primary"
-            >
-              <RotateCw size={14} />
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="cursor-pointer bg-secondary hover:bg-primary hover:text-primary-foreground p-1.5 elite-border transition-all">
-              <FileCode size={16} />
-              <input
-                type="file"
-                className="hidden"
-                accept=".html,.htm"
-                onChange={handleFileUpload}
-              />
-            </label>
-            <button
-              onClick={handleDownload}
-              className="bg-secondary hover:bg-primary hover:text-primary-foreground p-1.5 elite-border transition-all"
-            >
-              <Download size={16} />
-            </button>
-          </div>
+
+        <div className="flex items-center gap-1">
+          {/* Toggle Buttons */}
+          <button
+            onClick={() => setShowPreview(!showPreview)}
+            className={`p-1.5 rounded transition-colors ${showPreview ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            title="Preview"
+          >
+            <Eye size={14} />
+          </button>
+          <button
+            onClick={() => setShowAi(!showAi)}
+            className={`p-1.5 rounded transition-colors ${showAi ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            title="AI Panel"
+          >
+            <Bot size={14} />
+          </button>
+          
+          <div className="w-px h-4 bg-border mx-1" />
+
+          {/* Undo/Redo */}
+          <button onClick={handleUndo} disabled={!canUndo} className="p-1.5 text-muted-foreground hover:text-foreground disabled:opacity-20">
+            <RotateCcw size={14} />
+          </button>
+          <button onClick={handleRedo} disabled={!canRedo} className="p-1.5 text-muted-foreground hover:text-foreground disabled:opacity-20">
+            <RotateCw size={14} />
+          </button>
+
+          <div className="w-px h-4 bg-border mx-1" />
+
+          {/* File Actions */}
+          <label className="p-1.5 text-muted-foreground hover:text-foreground cursor-pointer">
+            <FileCode size={14} />
+            <input type="file" className="hidden" accept=".html,.htm" onChange={handleFileUpload} />
+          </label>
+          <button onClick={handleDownload} className="p-1.5 text-muted-foreground hover:text-foreground">
+            <Download size={14} />
+          </button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 relative overflow-hidden flex flex-col md:grid md:grid-cols-3">
-        <div className="flex-1 flex flex-col md:col-span-2">
-          <TabBar
-            tabs={tabs}
-            activeTabId={activeTabId}
-            onSelectTab={setActiveTabId}
-            onCloseTab={handleCloseTab}
-            onAddTab={handleAddTab}
-          />
-          <div className="flex-1 flex overflow-hidden">
-            <div className={`flex-1 flex-col ${mobileTab === 'editor' ? 'flex' : 'hidden md:flex'} md:border-r md:border-primary/20`}>
-              <CodeEditor
-                value={activeTab?.code || ''}
-                onChange={updateActiveTabCode}
-              />
+      {/* Main Content - Resizable */}
+      <main className="flex-1 overflow-hidden">
+        <ResizablePanelGroup orientation="horizontal">
+          {/* Editor Panel */}
+          <ResizablePanel defaultSize={showAi ? 40 : 50} minSize={25}>
+            <div className="h-full flex flex-col">
+              <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
+                <Terminal size={12} className="text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                  {activeTab?.title}
+                </span>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <CodeEditor value={activeTab?.code || ''} onChange={updateActiveTabCode} />
+              </div>
             </div>
-            <div className={`flex-1 flex-col ${mobileTab === 'preview' ? 'flex' : 'hidden md:flex'}`}>
-              <Preview code={activeTab?.code || ''} />
-            </div>
-          </div>
-        </div>
-        <div className={`flex-1 flex-col ${mobileTab === 'ai' ? 'flex' : 'hidden md:flex'} bg-elite-dark border-t md:border-t-0 md:border-l border-primary/30`}>
-          <AiWorkbench
-            currentCode={activeTab?.code || ''}
-            onApplyCode={handleApplyCode}
-            projectTabs={tabs}
-            onFusionComplete={handleFusionComplete}
-          />
-        </div>
-      </main>
+          </ResizablePanel>
 
-      {/* Mobile Navigation */}
-      <nav className="md:hidden flex bg-elite-dark border-t border-primary/30 shrink-0">
-        <button
-          onClick={() => setMobileTab('editor')}
-          className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${
-            mobileTab === 'editor' ? 'text-primary bg-primary/10' : 'text-muted-foreground'
-          }`}
-        >
-          <FileCode size={18} />
-          <span className="text-[8px] font-bold uppercase tracking-widest">Logic</span>
-        </button>
-        <button
-          onClick={() => setMobileTab('preview')}
-          className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${
-            mobileTab === 'preview' ? 'text-primary bg-primary/10' : 'text-muted-foreground'
-          }`}
-        >
-          <Play size={18} />
-          <span className="text-[8px] font-bold uppercase tracking-widest">Execute</span>
-        </button>
-        <button
-          onClick={() => setMobileTab('ai')}
-          className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${
-            mobileTab === 'ai' ? 'text-primary bg-primary/10' : 'text-muted-foreground'
-          }`}
-        >
-          <Bot size={18} />
-          <span className="text-[8px] font-bold uppercase tracking-widest">Synthesis</span>
-        </button>
-      </nav>
+          {showPreview && (
+            <>
+              <ResizableHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
+              <ResizablePanel defaultSize={showAi ? 30 : 50} minSize={20}>
+                <div className="h-full flex flex-col">
+                  <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
+                    <Play size={12} className="text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Preview</span>
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <Preview code={activeTab?.code || ''} />
+                  </div>
+                </div>
+              </ResizablePanel>
+            </>
+          )}
+
+          {showAi && (
+            <>
+              <ResizableHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
+              <ResizablePanel defaultSize={30} minSize={20}>
+                <AiWorkbench
+                  currentCode={activeTab?.code || ''}
+                  onApplyCode={handleApplyCode}
+                  projectTabs={tabs}
+                  onFusionComplete={handleFusionComplete}
+                />
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
+      </main>
     </div>
   );
 };
