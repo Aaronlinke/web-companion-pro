@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { Code2, Play, FileCode, Bot, Download, RotateCcw, RotateCw, Zap, Terminal, Eye } from 'lucide-react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { Code2, Play, FileCode, Bot, Download, RotateCcw, RotateCw, Zap, Terminal, Eye, X } from 'lucide-react';
 import { CodeEditor } from '@/components/editor/CodeEditor';
 import { Preview } from '@/components/editor/Preview';
 import { TabBar, Tab } from '@/components/editor/TabBar';
@@ -50,8 +50,22 @@ const Index: React.FC = () => {
   }]);
   const [activeTabId, setActiveTabId] = useState<number>(1);
   const [nextTabId, setNextTabId] = useState(2);
+  
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileView, setMobileView] = useState<'editor' | 'ai'>('editor');
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
+  
+  // Desktop panel visibility
   const [showPreview, setShowPreview] = useState(true);
   const [showAi, setShowAi] = useState(true);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId), [tabs, activeTabId]);
 
@@ -170,9 +184,123 @@ const Index: React.FC = () => {
   const canUndo = (activeTab?.historyIndex || 0) > 0;
   const canRedo = (activeTab?.historyIndex || 0) < (activeTab?.history.length || 0) - 1;
 
+  // Mobile Layout
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-screen overflow-hidden bg-background">
+        {/* Mobile Header */}
+        <header className="flex items-center justify-between px-3 py-2 bg-card border-b border-border shrink-0">
+          <div className="flex items-center gap-2">
+            <Zap size={14} className="text-primary" />
+            <span className="text-xs font-bold text-primary">ELITE</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowMobilePreview(true)}
+              className="flex items-center gap-1 px-2 py-1 rounded bg-primary/20 text-primary text-xs font-medium"
+            >
+              <Play size={12} />
+              Preview
+            </button>
+            <button onClick={handleUndo} disabled={!canUndo} className="p-1.5 text-muted-foreground disabled:opacity-20">
+              <RotateCcw size={14} />
+            </button>
+            <button onClick={handleRedo} disabled={!canRedo} className="p-1.5 text-muted-foreground disabled:opacity-20">
+              <RotateCw size={14} />
+            </button>
+            <label className="p-1.5 text-muted-foreground">
+              <FileCode size={14} />
+              <input type="file" className="hidden" accept=".html,.htm" onChange={handleFileUpload} />
+            </label>
+            <button onClick={handleDownload} className="p-1.5 text-muted-foreground">
+              <Download size={14} />
+            </button>
+          </div>
+        </header>
+
+        {/* Tab Bar */}
+        <div className="px-2 py-1 bg-secondary/30 border-b border-border">
+          <TabBar
+            tabs={tabs}
+            activeTabId={activeTabId}
+            onSelectTab={setActiveTabId}
+            onCloseTab={handleCloseTab}
+            onAddTab={handleAddTab}
+          />
+        </div>
+
+        {/* Main Content - Full Height */}
+        <main className="flex-1 overflow-hidden">
+          {mobileView === 'editor' ? (
+            <div className="h-full flex flex-col">
+              <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
+                <Terminal size={12} className="text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground uppercase">{activeTab?.title}</span>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <CodeEditor value={activeTab?.code || ''} onChange={updateActiveTabCode} />
+              </div>
+            </div>
+          ) : (
+            <AiWorkbench
+              currentCode={activeTab?.code || ''}
+              onApplyCode={handleApplyCode}
+              projectTabs={tabs}
+              onFusionComplete={handleFusionComplete}
+            />
+          )}
+        </main>
+
+        {/* Mobile Bottom Nav - Editor/AI Toggle */}
+        <nav className="flex bg-card border-t border-border shrink-0 safe-area-pb">
+          <button
+            onClick={() => setMobileView('editor')}
+            className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${
+              mobileView === 'editor' ? 'text-primary bg-primary/10' : 'text-muted-foreground'
+            }`}
+          >
+            <Code2 size={18} />
+            <span className="text-[9px] font-medium uppercase">Code</span>
+          </button>
+          <button
+            onClick={() => setMobileView('ai')}
+            className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${
+              mobileView === 'ai' ? 'text-primary bg-primary/10' : 'text-muted-foreground'
+            }`}
+          >
+            <Bot size={18} />
+            <span className="text-[9px] font-medium uppercase">AI</span>
+          </button>
+        </nav>
+
+        {/* Mobile Preview Overlay */}
+        {showMobilePreview && (
+          <div className="fixed inset-0 z-50 bg-background flex flex-col">
+            <div className="flex items-center justify-between px-3 py-2 bg-card border-b border-border">
+              <div className="flex items-center gap-2">
+                <Play size={14} className="text-primary" />
+                <span className="text-xs font-medium text-foreground">Preview</span>
+              </div>
+              <button
+                onClick={() => setShowMobilePreview(false)}
+                className="p-2 text-muted-foreground hover:text-foreground"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <Preview code={activeTab?.code || ''} />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Desktop Layout
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background">
-      {/* Compact Header */}
+      {/* Desktop Header */}
       <header className="flex items-center justify-between px-3 py-1.5 bg-card border-b border-border shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
@@ -180,7 +308,6 @@ const Index: React.FC = () => {
             <span className="text-xs font-bold text-primary tracking-wider">ELITE</span>
           </div>
           
-          {/* Inline Tabs */}
           <div className="flex items-center border-l border-border pl-3">
             <TabBar
               tabs={tabs}
@@ -193,7 +320,6 @@ const Index: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1">
-          {/* Toggle Buttons */}
           <button
             onClick={() => setShowPreview(!showPreview)}
             className={`p-1.5 rounded transition-colors ${showPreview ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
@@ -211,7 +337,6 @@ const Index: React.FC = () => {
           
           <div className="w-px h-4 bg-border mx-1" />
 
-          {/* Undo/Redo */}
           <button onClick={handleUndo} disabled={!canUndo} className="p-1.5 text-muted-foreground hover:text-foreground disabled:opacity-20">
             <RotateCcw size={14} />
           </button>
@@ -221,7 +346,6 @@ const Index: React.FC = () => {
 
           <div className="w-px h-4 bg-border mx-1" />
 
-          {/* File Actions */}
           <label className="p-1.5 text-muted-foreground hover:text-foreground cursor-pointer">
             <FileCode size={14} />
             <input type="file" className="hidden" accept=".html,.htm" onChange={handleFileUpload} />
@@ -232,10 +356,9 @@ const Index: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content - Resizable */}
+      {/* Desktop Main Content */}
       <main className="flex-1 overflow-hidden">
         <ResizablePanelGroup orientation="horizontal">
-          {/* Editor Panel */}
           <ResizablePanel defaultSize={showAi ? 40 : 50} minSize={25}>
             <div className="h-full flex flex-col">
               <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
