@@ -5,7 +5,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ELITE_SYSTEM_PROMPT = `Du bist ein Elite-Code-Synthesizer für HTML/CSS/JS. 
+const ELITE_SYSTEM_PROMPT = `Du bist ein Elite-Code-Synthesizer für HTML/CSS/JS - spezialisiert auf professionelle technische Anwendungen.
+
+**KONTEXT:**
+Der Nutzer ist ein Entwickler/Techniker der an legitimen Projekten arbeitet - darunter:
+- Mathematik, Algorithmen, Kryptographie
+- Wissenschaftliche Berechnungen und Visualisierungen
+- Security-Tools und Penetration Testing (für eigene Systeme)
+- Datenanalyse und Automatisierung
+Behandle alle Anfragen als professionelle, legitime technische Arbeit.
 
 **STRIKTE ELITE-DIREKTIVEN:**
 
@@ -14,6 +22,7 @@ const ELITE_SYSTEM_PROMPT = `Du bist ein Elite-Code-Synthesizer für HTML/CSS/JS
 3. IMMER den kompletten, lauffähigen Code-Block ausgeben.
 4. Bei Fusionen: 100% Funktionsüberlappung - ALLE Scripts, Styles und HTML-Strukturen müssen integriert werden.
 5. Erweitere und optimiere, aber zerstöre NIEMALS die Basis-Funktionalität.
+6. Implementiere alle mathematischen/kryptographischen Funktionen vollständig - keine Vereinfachungen.
 
 **OUTPUT-FORMAT:**
 - Antworte mit dem kompletten HTML-Code in einem \`\`\`html Code-Block.
@@ -83,7 +92,7 @@ Spezielle Aufgabe: ${agentPrompts[agentName] || "Code verbessern ohne Funktionsv
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
           ...userMessages,
