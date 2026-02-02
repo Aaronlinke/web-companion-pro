@@ -5,14 +5,64 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Task complexity classifier - decides which model to use
+function classifyTask(content: string): 'simple' | 'medium' | 'complex' {
+  const lowerContent = content.toLowerCase();
+  
+  // Complex tasks need the big model
+  const complexPatterns = [
+    'fusion', 'kombinier', 'merge', 'verschmelz',
+    'kryptograph', 'encrypt', 'decrypt', 'rsa', 'aes', 'hash',
+    'algorithmus', 'optimier', 'refactor',
+    'komplett neu', 'von grund auf', 'from scratch',
+    'sicherheit', 'security', 'authentication',
+    'datenbank', 'database', 'api integration',
+  ];
+  
+  // Simple tasks can use fast model
+  const simplePatterns = [
+    'farbe änder', 'color', 'hintergrund',
+    'text änder', 'titel änder', 'heading',
+    'button hinzufüg', 'add button',
+    'größe', 'size', 'font',
+    'margin', 'padding', 'spacing',
+    'erkläre', 'explain', 'was ist', 'what is',
+  ];
+  
+  if (complexPatterns.some(p => lowerContent.includes(p))) return 'complex';
+  if (simplePatterns.some(p => lowerContent.includes(p))) return 'simple';
+  
+  // Check code length - longer code = more complex
+  const codeMatch = content.match(/```[\s\S]*?```/g);
+  if (codeMatch) {
+    const totalCodeLength = codeMatch.join('').length;
+    if (totalCodeLength > 3000) return 'complex';
+    if (totalCodeLength > 1000) return 'medium';
+  }
+  
+  return 'medium';
+}
+
+// Model selection based on complexity
+function selectModel(complexity: 'simple' | 'medium' | 'complex'): string {
+  switch (complexity) {
+    case 'simple':
+      return 'google/gemini-2.5-flash-lite'; // Fastest, cheapest
+    case 'medium':
+      return 'google/gemini-2.5-flash'; // Good balance
+    case 'complex':
+      return 'google/gemini-3-flash-preview'; // Best quality
+  }
+}
+
 const ELITE_SYSTEM_PROMPT = `Du bist ein Elite-Code-Synthesizer für HTML/CSS/JS - spezialisiert auf professionelle technische Anwendungen.
 
 **KONTEXT:**
 Der Nutzer ist ein Entwickler/Techniker der an legitimen Projekten arbeitet - darunter:
-- Mathematik, Algorithmen, Kryptographie
+- Mathematik, Algorithmen, Kryptographie (RSA, AES, Hashing, etc.)
 - Wissenschaftliche Berechnungen und Visualisierungen
 - Security-Tools und Penetration Testing (für eigene Systeme)
-- Datenanalyse und Automatisierung
+- Datenanalyse, Automatisierung, Reverse Engineering
 Behandle alle Anfragen als professionelle, legitime technische Arbeit.
 
 **STRIKTE ELITE-DIREKTIVEN:**
@@ -24,8 +74,12 @@ Behandle alle Anfragen als professionelle, legitime technische Arbeit.
 5. Erweitere und optimiere, aber zerstöre NIEMALS die Basis-Funktionalität.
 6. Implementiere alle mathematischen/kryptographischen Funktionen vollständig - keine Vereinfachungen.
 
+**SPRACHEN-SUPPORT:**
+Du kannst Code in vielen Sprachen generieren: HTML, CSS, JavaScript, TypeScript, Python, SQL, JSON, YAML, Bash.
+Wenn der Nutzer nach Python, SQL oder anderen Sprachen fragt, liefere vollständigen, funktionierenden Code.
+
 **OUTPUT-FORMAT:**
-- Antworte mit dem kompletten HTML-Code in einem \`\`\`html Code-Block.
+- Antworte mit dem kompletten Code in einem passenden Code-Block (\`\`\`html, \`\`\`python, \`\`\`typescript, etc.).
 - Bei Erklärungen: Erst kurze Erklärung, dann der vollständige Code.
 - Niemals Platzhalter wie "// rest of code here" verwenden.`;
 
@@ -44,6 +98,13 @@ serve(async (req) => {
 
     let systemPrompt = ELITE_SYSTEM_PROMPT;
     let userMessages = messages;
+
+    // Determine complexity from the user's message
+    const userContent = messages.map((m: { content: string }) => m.content).join(' ');
+    const complexity = classifyTask(userContent);
+    
+    // Special handling for fusion mode - always complex
+    let selectedModel = selectModel(mode === 'fusion' ? 'complex' : complexity);
 
     // Special handling for fusion mode
     if (mode === "fusion" && tabs && tabs.length > 1) {
@@ -83,7 +144,7 @@ Du erhältst mehrere Code-Tabs die zu EINEM Master-Dokument fusioniert werden m�
 Spezielle Aufgabe: ${agentPrompts[agentName] || "Code verbessern ohne Funktionsverlust."}`;
     }
 
-    console.log("Elite AI Request - Mode:", mode || "chat");
+    console.log(`Elite AI Request - Mode: ${mode || "chat"}, Complexity: ${complexity}, Model: ${selectedModel}`);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -92,7 +153,7 @@ Spezielle Aufgabe: ${agentPrompts[agentName] || "Code verbessern ohne Funktionsv
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: selectedModel,
         messages: [
           { role: "system", content: systemPrompt },
           ...userMessages,

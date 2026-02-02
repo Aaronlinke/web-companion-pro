@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Code2, Play, FileCode, Bot, Download, RotateCcw, RotateCw, Zap, Terminal, Eye, X } from 'lucide-react';
+import { Code2, Play, FileCode, Bot, Download, RotateCcw, RotateCw, Zap, Terminal, Eye, X, Bookmark } from 'lucide-react';
+import { SnippetManager } from '@/components/snippets/SnippetManager';
 import { CodeEditor } from '@/components/editor/CodeEditor';
 import { Preview } from '@/components/editor/Preview';
 import { TabBar, Tab } from '@/components/editor/TabBar';
@@ -59,6 +60,7 @@ const Index: React.FC = () => {
   // Desktop panel visibility
   const [showPreview, setShowPreview] = useState(true);
   const [showAi, setShowAi] = useState(true);
+  const [showSnippets, setShowSnippets] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -215,6 +217,9 @@ const Index: React.FC = () => {
             <button onClick={handleDownload} className="p-1.5 text-muted-foreground">
               <Download size={14} />
             </button>
+            <button onClick={() => setShowSnippets(true)} className="p-1.5 text-muted-foreground">
+              <Bookmark size={14} />
+            </button>
           </div>
         </header>
 
@@ -238,7 +243,7 @@ const Index: React.FC = () => {
                 <span className="text-[10px] text-muted-foreground uppercase">{activeTab?.title}</span>
               </div>
               <div className="flex-1 overflow-hidden">
-                <CodeEditor value={activeTab?.code || ''} onChange={updateActiveTabCode} />
+                <CodeEditor value={activeTab?.code || ''} onChange={updateActiveTabCode} isMobile={true} />
               </div>
             </div>
           ) : (
@@ -293,6 +298,14 @@ const Index: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Snippet Manager */}
+        <SnippetManager
+          currentCode={activeTab?.code || ''}
+          onLoadSnippet={updateActiveTabCode}
+          isOpen={showSnippets}
+          onClose={() => setShowSnippets(false)}
+        />
       </div>
     );
   }
@@ -353,6 +366,9 @@ const Index: React.FC = () => {
           <button onClick={handleDownload} className="p-1.5 text-muted-foreground hover:text-foreground">
             <Download size={14} />
           </button>
+          <button onClick={() => setShowSnippets(true)} className="p-1.5 text-muted-foreground hover:text-foreground" title="Snippets">
+            <Bookmark size={14} />
+          </button>
         </div>
       </header>
 
@@ -405,6 +421,14 @@ const Index: React.FC = () => {
           )}
         </ResizablePanelGroup>
       </main>
+
+      {/* Snippet Manager */}
+      <SnippetManager
+        currentCode={activeTab?.code || ''}
+        onLoadSnippet={updateActiveTabCode}
+        isOpen={showSnippets}
+        onClose={() => setShowSnippets(false)}
+      />
     </div>
   );
 };
