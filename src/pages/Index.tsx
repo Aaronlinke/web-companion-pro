@@ -1,11 +1,17 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Code2, Play, FileCode, Bot, Download, RotateCcw, RotateCw, Zap, Terminal, Eye, X, Bookmark } from 'lucide-react';
+import {
+  Code2, Play, FileCode, Bot, Download, RotateCcw, RotateCw,
+  Zap, Terminal, Eye, X, Bookmark, Keyboard, Wifi, WifiOff, Loader
+} from 'lucide-react';
 import { SnippetManager } from '@/components/snippets/SnippetManager';
 import { CodeEditor } from '@/components/editor/CodeEditor';
 import { Preview } from '@/components/editor/Preview';
 import { TabBar, Tab } from '@/components/editor/TabBar';
 import { AiWorkbench } from '@/components/ai/AiWorkbench';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { useBackendStatus } from '@/hooks/useBackendStatus';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { toast } from 'sonner';
 
 const initialCode = `<!DOCTYPE html>
 <html lang="de">
@@ -41,26 +47,34 @@ const initialCode = `<!DOCTYPE html>
 </body>
 </html>`;
 
+const SHORTCUTS = [
+  { keys: 'Ctrl+S', desc: 'Datei herunterladen' },
+  { keys: 'Ctrl+Z', desc: 'Rückgängig' },
+  { keys: 'Ctrl+Y', desc: 'Wiederholen' },
+  { keys: 'Ctrl+P', desc: 'Preview ein/aus' },
+  { keys: 'Ctrl+I', desc: 'AI-Panel ein/aus' },
+  { keys: 'Ctrl+T', desc: 'Neuer Tab' },
+  { keys: '?', desc: 'Shortcuts anzeigen' },
+];
+
 const Index: React.FC = () => {
   const [tabs, setTabs] = useState<Tab[]>([{
-    id: 1,
-    title: 'nexus_core.html',
-    code: initialCode,
-    history: [initialCode],
-    historyIndex: 0
+    id: 1, title: 'nexus_core.html', code: initialCode,
+    history: [initialCode], historyIndex: 0
   }]);
   const [activeTabId, setActiveTabId] = useState<number>(1);
   const [nextTabId, setNextTabId] = useState(2);
-  
-  // Mobile detection
+
   const [isMobile, setIsMobile] = useState(false);
   const [mobileView, setMobileView] = useState<'editor' | 'ai'>('editor');
   const [showMobilePreview, setShowMobilePreview] = useState(false);
-  
-  // Desktop panel visibility
+
   const [showPreview, setShowPreview] = useState(true);
   const [showAi, setShowAi] = useState(true);
   const [showSnippets, setShowSnippets] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  const { status: backendStatus } = useBackendStatus();
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -69,79 +83,56 @@ const Index: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId), [tabs, activeTabId]);
+  const activeTab = useMemo(() => tabs.find(t => t.id === activeTabId), [tabs, activeTabId]);
 
-  const updateActiveTabCode = useCallback((newCode: string, addToHistory: boolean = true) => {
-    setTabs(prevTabs => prevTabs.map(tab => {
-      if (tab.id === activeTabId) {
-        if (!addToHistory) return { ...tab, code: newCode };
-        if (newCode === tab.code) return tab;
-
-        const newHistory = tab.history.slice(0, tab.historyIndex + 1);
-        newHistory.push(newCode);
-        if (newHistory.length > 100) newHistory.shift();
-
-        return {
-          ...tab,
-          code: newCode,
-          history: newHistory,
-          historyIndex: newHistory.length - 1
-        };
-      }
-      return tab;
+  const updateActiveTabCode = useCallback((newCode: string, addToHistory = true) => {
+    setTabs(prev => prev.map(tab => {
+      if (tab.id !== activeTabId) return tab;
+      if (!addToHistory) return { ...tab, code: newCode };
+      if (newCode === tab.code) return tab;
+      const hist = tab.history.slice(0, tab.historyIndex + 1);
+      hist.push(newCode);
+      if (hist.length > 100) hist.shift();
+      return { ...tab, code: newCode, history: hist, historyIndex: hist.length - 1 };
     }));
   }, [activeTabId]);
 
   const handleUndo = useCallback(() => {
-    setTabs(prevTabs => prevTabs.map(tab => {
+    setTabs(prev => prev.map(tab => {
       if (tab.id === activeTabId && tab.historyIndex > 0) {
-        const newIndex = tab.historyIndex - 1;
-        return { ...tab, code: tab.history[newIndex], historyIndex: newIndex };
+        const idx = tab.historyIndex - 1;
+        return { ...tab, code: tab.history[idx], historyIndex: idx };
       }
       return tab;
     }));
   }, [activeTabId]);
 
   const handleRedo = useCallback(() => {
-    setTabs(prevTabs => prevTabs.map(tab => {
+    setTabs(prev => prev.map(tab => {
       if (tab.id === activeTabId && tab.historyIndex < tab.history.length - 1) {
-        const newIndex = tab.historyIndex + 1;
-        return { ...tab, code: tab.history[newIndex], historyIndex: newIndex };
+        const idx = tab.historyIndex + 1;
+        return { ...tab, code: tab.history[idx], historyIndex: idx };
       }
       return tab;
     }));
   }, [activeTabId]);
 
-  const handleApplyCode = useCallback((code: string) => {
-    updateActiveTabCode(code);
-  }, [updateActiveTabCode]);
+  const handleApplyCode = useCallback((code: string) => updateActiveTabCode(code), [updateActiveTabCode]);
 
   const handleFusionComplete = useCallback((code: string, title: string) => {
-    const newTab: Tab = {
-      id: nextTabId,
-      title,
-      code,
-      history: [code],
-      historyIndex: 0
-    };
-    setTabs(prev => [...prev, newTab]);
+    const t: Tab = { id: nextTabId, title, code, history: [code], historyIndex: 0 };
+    setTabs(prev => [...prev, t]);
     setActiveTabId(nextTabId);
-    setNextTabId(prev => prev + 1);
+    setNextTabId(p => p + 1);
   }, [nextTabId]);
 
-  const handleAddTab = () => {
-    const t: Tab = {
-      id: nextTabId,
-      title: `module_${nextTabId}.html`,
-      code: '<!DOCTYPE html>\n<html>\n<head>\n  <script src="https://cdn.tailwindcss.com"></script>\n</head>\n<body class="bg-slate-900 text-white p-8">\n  <h1 class="text-2xl font-bold">Neues Modul</h1>\n</body>\n</html>',
-      history: [''],
-      historyIndex: 0
-    };
-    t.history = [t.code];
-    setTabs([...tabs, t]);
+  const handleAddTab = useCallback(() => {
+    const blank = '<!DOCTYPE html>\n<html>\n<head>\n  <script src="https://cdn.tailwindcss.com"></script>\n</head>\n<body class="bg-slate-900 text-white p-8">\n  <h1 class="text-2xl font-bold">Neues Modul</h1>\n</body>\n</html>';
+    const t: Tab = { id: nextTabId, title: `module_${nextTabId}.html`, code: blank, history: [blank], historyIndex: 0 };
+    setTabs(prev => [...prev, t]);
     setActiveTabId(nextTabId);
-    setNextTabId(nextTabId + 1);
-  };
+    setNextTabId(p => p + 1);
+  }, [nextTabId, tabs]);
 
   const handleCloseTab = (id: number) => {
     const newTabs = tabs.filter(t => t.id !== id);
@@ -152,89 +143,120 @@ const Index: React.FC = () => {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const content = ev.target?.result as string;
-        const newTab: Tab = {
-          id: nextTabId,
-          title: file.name,
-          code: content,
-          history: [content],
-          historyIndex: 0
-        };
-        setTabs([...tabs, newTab]);
-        setActiveTabId(nextTabId);
-        setNextTabId(nextTabId + 1);
-      };
-      reader.readAsText(file);
-    }
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = ev.target?.result as string;
+      const t: Tab = { id: nextTabId, title: file.name, code: content, history: [content], historyIndex: 0 };
+      setTabs(prev => [...prev, t]);
+      setActiveTabId(nextTabId);
+      setNextTabId(p => p + 1);
+    };
+    reader.readAsText(file);
+    // Reset input so same file can be re-uploaded
+    e.target.value = '';
   };
 
-  const handleDownload = () => {
-    if (activeTab) {
-      const blob = new Blob([activeTab.code], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = activeTab.title;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-  };
+  const handleDownload = useCallback(() => {
+    if (!activeTab) return;
+    const ext = activeTab.title.includes('.') ? '' : '.html';
+    const blob = new Blob([activeTab.code], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = activeTab.title + ext; a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${activeTab.title} heruntergeladen`);
+  }, [activeTab]);
 
-  const canUndo = (activeTab?.historyIndex || 0) > 0;
-  const canRedo = (activeTab?.historyIndex || 0) < (activeTab?.history.length || 0) - 1;
+  useKeyboardShortcuts({
+    onSave: handleDownload,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onTogglePreview: () => setShowPreview(p => !p),
+    onToggleAi: () => setShowAi(p => !p),
+    onNewTab: handleAddTab,
+    onShowShortcuts: () => setShowShortcuts(p => !p),
+  });
 
-  // Mobile Layout
+  const canUndo = (activeTab?.historyIndex ?? 0) > 0;
+  const canRedo = (activeTab?.historyIndex ?? 0) < (activeTab?.history.length ?? 0) - 1;
+
+  // Backend status dot
+  const statusDot = {
+    unknown: { color: 'bg-muted-foreground', title: 'Backend: Unbekannt' },
+    waking: { color: 'bg-yellow-500 animate-pulse', title: 'Backend: Aufwachen…' },
+    ready: { color: 'bg-primary', title: 'Backend: Bereit' },
+    error: { color: 'bg-destructive', title: 'Backend: Fehler' },
+  }[backendStatus];
+
+  const headerActions = (mobile = false) => (
+    <div className={`flex items-center ${mobile ? 'gap-0.5' : 'gap-1'}`}>
+      {!mobile && (
+        <>
+          <button onClick={() => setShowPreview(p => !p)}
+            className={`p-1.5 rounded transition-colors ${showPreview ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            title="Preview (Ctrl+P)">
+            <Eye size={14} />
+          </button>
+          <button onClick={() => setShowAi(p => !p)}
+            className={`p-1.5 rounded transition-colors ${showAi ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            title="AI Panel (Ctrl+I)">
+            <Bot size={14} />
+          </button>
+          <div className="w-px h-4 bg-border mx-0.5" />
+        </>
+      )}
+      {mobile && (
+        <button onClick={() => setShowMobilePreview(true)}
+          className="flex items-center gap-1 px-2 py-1 rounded bg-primary/20 text-primary text-xs font-medium">
+          <Play size={12} /> Preview
+        </button>
+      )}
+      <button onClick={handleUndo} disabled={!canUndo} className="p-1.5 text-muted-foreground hover:text-foreground disabled:opacity-20" title="Undo (Ctrl+Z)">
+        <RotateCcw size={14} />
+      </button>
+      <button onClick={handleRedo} disabled={!canRedo} className="p-1.5 text-muted-foreground hover:text-foreground disabled:opacity-20" title="Redo (Ctrl+Y)">
+        <RotateCw size={14} />
+      </button>
+      <div className="w-px h-4 bg-border mx-0.5" />
+      <label className={`p-1.5 text-muted-foreground hover:text-foreground cursor-pointer`} title="Datei öffnen">
+        <FileCode size={14} />
+        <input type="file" className="hidden"
+          accept=".html,.htm,.py,.ts,.tsx,.js,.jsx,.json,.sql,.md,.yaml,.yml,.css,.txt"
+          onChange={handleFileUpload} />
+      </label>
+      <button onClick={handleDownload} className="p-1.5 text-muted-foreground hover:text-foreground" title="Download (Ctrl+S)">
+        <Download size={14} />
+      </button>
+      <button onClick={() => setShowSnippets(true)} className="p-1.5 text-muted-foreground hover:text-foreground" title="Snippets">
+        <Bookmark size={14} />
+      </button>
+      {!mobile && (
+        <button onClick={() => setShowShortcuts(p => !p)} className="p-1.5 text-muted-foreground hover:text-foreground" title="Shortcuts (?)">
+          <Keyboard size={14} />
+        </button>
+      )}
+    </div>
+  );
+
+  // ── Mobile Layout ──────────────────────────────────────────────
   if (isMobile) {
     return (
       <div className="flex flex-col h-screen overflow-hidden bg-background">
-        {/* Mobile Header */}
         <header className="flex items-center justify-between px-3 py-2 bg-card border-b border-border shrink-0">
           <div className="flex items-center gap-2">
             <Zap size={14} className="text-primary" />
             <span className="text-xs font-bold text-primary">ELITE</span>
+            <div className={`w-1.5 h-1.5 rounded-full ${statusDot.color}`} title={statusDot.title} />
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setShowMobilePreview(true)}
-              className="flex items-center gap-1 px-2 py-1 rounded bg-primary/20 text-primary text-xs font-medium"
-            >
-              <Play size={12} />
-              Preview
-            </button>
-            <button onClick={handleUndo} disabled={!canUndo} className="p-1.5 text-muted-foreground disabled:opacity-20">
-              <RotateCcw size={14} />
-            </button>
-            <button onClick={handleRedo} disabled={!canRedo} className="p-1.5 text-muted-foreground disabled:opacity-20">
-              <RotateCw size={14} />
-            </button>
-            <label className="p-1.5 text-muted-foreground">
-              <FileCode size={14} />
-              <input type="file" className="hidden" accept=".html,.htm,.py,.ts,.tsx,.js,.jsx,.json,.sql,.md,.yaml,.yml,.css,.txt" onChange={handleFileUpload} />
-            </label>
-            <button onClick={handleDownload} className="p-1.5 text-muted-foreground">
-              <Download size={14} />
-            </button>
-            <button onClick={() => setShowSnippets(true)} className="p-1.5 text-muted-foreground">
-              <Bookmark size={14} />
-            </button>
-          </div>
+          {headerActions(true)}
         </header>
 
-        {/* Tab Bar */}
         <div className="px-2 py-1 bg-secondary/30 border-b border-border">
-          <TabBar
-            tabs={tabs}
-            activeTabId={activeTabId}
-            onSelectTab={setActiveTabId}
-            onCloseTab={handleCloseTab}
-            onAddTab={handleAddTab}
-          />
+          <TabBar tabs={tabs} activeTabId={activeTabId}
+            onSelectTab={setActiveTabId} onCloseTab={handleCloseTab} onAddTab={handleAddTab} />
         </div>
 
-        {/* Main Content - Full Height */}
         <main className="flex-1 overflow-hidden">
           {mobileView === 'editor' ? (
             <div className="h-full flex flex-col">
@@ -243,53 +265,33 @@ const Index: React.FC = () => {
                 <span className="text-[10px] text-muted-foreground uppercase">{activeTab?.title}</span>
               </div>
               <div className="flex-1 overflow-hidden">
-                <CodeEditor value={activeTab?.code || ''} onChange={updateActiveTabCode} isMobile={true} />
+                <CodeEditor value={activeTab?.code || ''} onChange={updateActiveTabCode} isMobile />
               </div>
             </div>
           ) : (
-            <AiWorkbench
-              currentCode={activeTab?.code || ''}
-              onApplyCode={handleApplyCode}
-              projectTabs={tabs}
-              onFusionComplete={handleFusionComplete}
-            />
+            <AiWorkbench currentCode={activeTab?.code || ''} onApplyCode={handleApplyCode}
+              projectTabs={tabs} onFusionComplete={handleFusionComplete} />
           )}
         </main>
 
-        {/* Mobile Bottom Nav - Editor/AI Toggle */}
-        <nav className="flex bg-card border-t border-border shrink-0 safe-area-pb">
-          <button
-            onClick={() => setMobileView('editor')}
-            className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${
-              mobileView === 'editor' ? 'text-primary bg-primary/10' : 'text-muted-foreground'
-            }`}
-          >
-            <Code2 size={18} />
-            <span className="text-[9px] font-medium uppercase">Code</span>
-          </button>
-          <button
-            onClick={() => setMobileView('ai')}
-            className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${
-              mobileView === 'ai' ? 'text-primary bg-primary/10' : 'text-muted-foreground'
-            }`}
-          >
-            <Bot size={18} />
-            <span className="text-[9px] font-medium uppercase">AI</span>
-          </button>
+        <nav className="flex bg-card border-t border-border shrink-0">
+          {[{ view: 'editor', icon: <Code2 size={18} />, label: 'Code' }, { view: 'ai', icon: <Bot size={18} />, label: 'AI' }].map(({ view, icon, label }) => (
+            <button key={view} onClick={() => setMobileView(view as 'editor' | 'ai')}
+              className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${mobileView === view ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}>
+              {icon}
+              <span className="text-[9px] font-medium uppercase">{label}</span>
+            </button>
+          ))}
         </nav>
 
-        {/* Mobile Preview Overlay */}
         {showMobilePreview && (
           <div className="fixed inset-0 z-50 bg-background flex flex-col">
             <div className="flex items-center justify-between px-3 py-2 bg-card border-b border-border">
               <div className="flex items-center gap-2">
                 <Play size={14} className="text-primary" />
-                <span className="text-xs font-medium text-foreground">Preview</span>
+                <span className="text-xs font-medium">Preview</span>
               </div>
-              <button
-                onClick={() => setShowMobilePreview(false)}
-                className="p-2 text-muted-foreground hover:text-foreground"
-              >
+              <button onClick={() => setShowMobilePreview(false)} className="p-2 text-muted-foreground hover:text-foreground">
                 <X size={18} />
               </button>
             </div>
@@ -299,89 +301,41 @@ const Index: React.FC = () => {
           </div>
         )}
 
-        {/* Snippet Manager */}
-        <SnippetManager
-          currentCode={activeTab?.code || ''}
-          onLoadSnippet={updateActiveTabCode}
-          isOpen={showSnippets}
-          onClose={() => setShowSnippets(false)}
-        />
+        <SnippetManager currentCode={activeTab?.code || ''} onLoadSnippet={updateActiveTabCode}
+          isOpen={showSnippets} onClose={() => setShowSnippets(false)} />
       </div>
     );
   }
 
-  // Desktop Layout
+  // ── Desktop Layout ─────────────────────────────────────────────
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background">
-      {/* Desktop Header */}
       <header className="flex items-center justify-between px-3 py-1.5 bg-card border-b border-border shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <Zap size={14} className="text-primary" />
             <span className="text-xs font-bold text-primary tracking-wider">ELITE</span>
+            {/* Backend status */}
+            <div className={`w-1.5 h-1.5 rounded-full ${statusDot.color}`} title={statusDot.title} />
           </div>
-          
           <div className="flex items-center border-l border-border pl-3">
-            <TabBar
-              tabs={tabs}
-              activeTabId={activeTabId}
-              onSelectTab={setActiveTabId}
-              onCloseTab={handleCloseTab}
-              onAddTab={handleAddTab}
-            />
+            <TabBar tabs={tabs} activeTabId={activeTabId}
+              onSelectTab={setActiveTabId} onCloseTab={handleCloseTab} onAddTab={handleAddTab} />
           </div>
         </div>
-
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setShowPreview(!showPreview)}
-            className={`p-1.5 rounded transition-colors ${showPreview ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-            title="Preview"
-          >
-            <Eye size={14} />
-          </button>
-          <button
-            onClick={() => setShowAi(!showAi)}
-            className={`p-1.5 rounded transition-colors ${showAi ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-            title="AI Panel"
-          >
-            <Bot size={14} />
-          </button>
-          
-          <div className="w-px h-4 bg-border mx-1" />
-
-          <button onClick={handleUndo} disabled={!canUndo} className="p-1.5 text-muted-foreground hover:text-foreground disabled:opacity-20">
-            <RotateCcw size={14} />
-          </button>
-          <button onClick={handleRedo} disabled={!canRedo} className="p-1.5 text-muted-foreground hover:text-foreground disabled:opacity-20">
-            <RotateCw size={14} />
-          </button>
-
-          <div className="w-px h-4 bg-border mx-1" />
-
-          <label className="p-1.5 text-muted-foreground hover:text-foreground cursor-pointer">
-            <FileCode size={14} />
-            <input type="file" className="hidden" accept=".html,.htm,.py,.ts,.tsx,.js,.jsx,.json,.sql,.md,.yaml,.yml,.css,.txt" onChange={handleFileUpload} />
-          </label>
-          <button onClick={handleDownload} className="p-1.5 text-muted-foreground hover:text-foreground">
-            <Download size={14} />
-          </button>
-          <button onClick={() => setShowSnippets(true)} className="p-1.5 text-muted-foreground hover:text-foreground" title="Snippets">
-            <Bookmark size={14} />
-          </button>
-        </div>
+        {headerActions(false)}
       </header>
 
-      {/* Desktop Main Content */}
       <main className="flex-1 overflow-hidden">
         <ResizablePanelGroup orientation="horizontal">
-          <ResizablePanel defaultSize={showAi ? 40 : 50} minSize={25}>
+          <ResizablePanel defaultSize={showAi ? 40 : 50} minSize={20}>
             <div className="h-full flex flex-col">
               <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
                 <Terminal size={12} className="text-muted-foreground" />
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                  {activeTab?.title}
-                </span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{activeTab?.title}</span>
+                <div className="ml-auto text-[9px] text-muted-foreground/40 font-mono">
+                  {(activeTab?.code.split('\n').length ?? 0)} lines
+                </div>
               </div>
               <div className="flex-1 overflow-hidden">
                 <CodeEditor value={activeTab?.code || ''} onChange={updateActiveTabCode} />
@@ -392,7 +346,7 @@ const Index: React.FC = () => {
           {showPreview && (
             <>
               <ResizableHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
-              <ResizablePanel defaultSize={showAi ? 30 : 50} minSize={20}>
+              <ResizablePanel defaultSize={showAi ? 30 : 50} minSize={15}>
                 <div className="h-full flex flex-col">
                   <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
                     <Play size={12} className="text-muted-foreground" />
@@ -410,25 +364,41 @@ const Index: React.FC = () => {
             <>
               <ResizableHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
               <ResizablePanel defaultSize={30} minSize={20}>
-                <AiWorkbench
-                  currentCode={activeTab?.code || ''}
-                  onApplyCode={handleApplyCode}
-                  projectTabs={tabs}
-                  onFusionComplete={handleFusionComplete}
-                />
+                <AiWorkbench currentCode={activeTab?.code || ''} onApplyCode={handleApplyCode}
+                  projectTabs={tabs} onFusionComplete={handleFusionComplete} />
               </ResizablePanel>
             </>
           )}
         </ResizablePanelGroup>
       </main>
 
-      {/* Snippet Manager */}
-      <SnippetManager
-        currentCode={activeTab?.code || ''}
-        onLoadSnippet={updateActiveTabCode}
-        isOpen={showSnippets}
-        onClose={() => setShowSnippets(false)}
-      />
+      {/* Shortcuts overlay */}
+      {showShortcuts && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center" onClick={() => setShowShortcuts(false)}>
+          <div className="bg-card border border-border rounded-lg p-5 w-72" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Keyboard size={14} className="text-primary" />
+                <span className="text-sm font-medium">Tastenkürzel</span>
+              </div>
+              <button onClick={() => setShowShortcuts(false)} className="text-muted-foreground hover:text-foreground">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {SHORTCUTS.map(({ keys, desc }) => (
+                <div key={keys} className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{desc}</span>
+                  <kbd className="px-1.5 py-0.5 bg-secondary border border-border rounded text-[10px] font-mono">{keys}</kbd>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <SnippetManager currentCode={activeTab?.code || ''} onLoadSnippet={updateActiveTabCode}
+        isOpen={showSnippets} onClose={() => setShowSnippets(false)} />
     </div>
   );
 };
