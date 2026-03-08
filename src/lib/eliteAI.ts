@@ -2,6 +2,8 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   agentName?: string;
+  model?: string;
+  complexity?: string;
 }
 
 export interface Tab {
@@ -19,6 +21,7 @@ export async function streamEliteChat({
   onDelta,
   onDone,
   onError,
+  onModelSelected,
 }: {
   messages: ChatMessage[];
   mode?: "chat" | "fusion" | "agent";
@@ -26,6 +29,7 @@ export async function streamEliteChat({
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (error: string) => void;
+  onModelSelected?: (model: string, complexity: string) => void;
 }) {
   try {
     const response = await fetch(AI_URL, {
@@ -56,7 +60,7 @@ export async function streamEliteChat({
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      
+
       buffer += decoder.decode(value, { stream: true });
 
       let newlineIndex: number;
@@ -65,7 +69,22 @@ export async function streamEliteChat({
         buffer = buffer.slice(newlineIndex + 1);
 
         if (line.endsWith("\r")) line = line.slice(0, -1);
-        if (line.startsWith(":") || line.trim() === "") continue;
+        if (line.trim() === "") continue;
+
+        // SSE comment with model info from server
+        if (line.startsWith(":model ")) {
+          const modelName = line.slice(7).trim();
+          // parse complexity from model name
+          const complexityMap: Record<string, string> = {
+            "google/gemini-2.5-flash-lite": "simple",
+            "google/gemini-2.5-flash": "medium",
+            "google/gemini-3-flash-preview": "complex",
+          };
+          onModelSelected?.(modelName, complexityMap[modelName] || "medium");
+          continue;
+        }
+
+        if (line.startsWith(":")) continue; // other SSE comments
         if (!line.startsWith("data: ")) continue;
 
         const jsonStr = line.slice(6).trim();
@@ -76,7 +95,6 @@ export async function streamEliteChat({
           const content = parsed.choices?.[0]?.delta?.content as string | undefined;
           if (content) onDelta(content);
         } catch {
-          // Incomplete JSON, put back and wait
           buffer = line + "\n" + buffer;
           break;
         }
@@ -105,6 +123,12 @@ export async function streamEliteChat({
 }
 
 export function extractCodeFromResponse(text: string): string | null {
-  const match = text.match(/```(?:html)?\n([\s\S]+?)```/);
+  // Try to find any code block (html, python, typescript, js, sql, json, bash, yaml, etc.)
+  const match = text.match(/```(?:\w+)?\n([\s\S]+?)```/);
   return match ? match[1].trim() : null;
+}
+
+export function detectLanguageFromResponse(text: string): string {
+  const match = text.match(/```(\w+)\n/);
+  return match ? match[1] : "html";
 }
