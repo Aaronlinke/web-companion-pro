@@ -6,6 +6,7 @@ interface ShortcutHandlers {
   onRedo?: () => void;
   onTogglePreview?: () => void;
   onToggleAi?: () => void;
+  onToggleTerminal?: () => void;
   onNewTab?: () => void;
   onShowShortcuts?: () => void;
   onFind?: () => void;
