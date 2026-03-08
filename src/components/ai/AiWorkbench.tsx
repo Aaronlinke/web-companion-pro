@@ -71,7 +71,7 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
     setIsProcessing(true);
     setActiveModel('');
 
-    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage, timestamp: Date.now() }]);
 
     let assistantResponse = '';
 
