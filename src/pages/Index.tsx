@@ -53,6 +53,7 @@ const SHORTCUTS = [
   { keys: 'Ctrl+S', desc: 'Datei herunterladen' },
   { keys: 'Ctrl+Z', desc: 'Rückgängig' },
   { keys: 'Ctrl+Y', desc: 'Wiederholen' },
+  { keys: 'Ctrl+F', desc: 'Suchen & Ersetzen' },
   { keys: 'Ctrl+P', desc: 'Preview ein/aus' },
   { keys: 'Ctrl+I', desc: 'AI-Panel ein/aus' },
   { keys: 'Ctrl+T', desc: 'Neuer Tab' },
