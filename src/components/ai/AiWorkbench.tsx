@@ -239,7 +239,7 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
             {agentStatuses[index] === 'thinking' ? (
               <Loader2 size={10} className="animate-spin" />
             ) : agentStatuses[index] === 'done' ? (
-              <Check size={10} className="text-green-500" />
+              <Check size={10} className="text-primary" />
             ) : null}
           </button>
         ))}
