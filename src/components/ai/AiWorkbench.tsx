@@ -338,7 +338,7 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
             <div className="bg-secondary p-2.5 rounded flex items-center gap-2">
               <Loader2 size={12} className="animate-spin text-primary" />
               {activeModel && (
-                <span className={`text-[9px] font-mono ${MODEL_LABELS[activeModel]?.color || 'text-muted-foreground'}`}>
+                <span className="text-[9px] font-mono text-primary">
                   {MODEL_LABELS[activeModel]?.label}...
                 </span>
               )}
