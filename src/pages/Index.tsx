@@ -10,7 +10,7 @@ import { TabBar, Tab } from '@/components/editor/TabBar';
 import { AiWorkbench } from '@/components/ai/AiWorkbench';
 import { SearchBar } from '@/components/editor/SearchBar';
 import { DiffViewer } from '@/components/editor/DiffViewer';
-import { Terminal } from '@/components/editor/Terminal';
+import { Terminal as TerminalPanel } from '@/components/editor/Terminal';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { useBackendStatus } from '@/hooks/useBackendStatus';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
