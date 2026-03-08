@@ -1,13 +1,15 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Code2, Play, FileCode, Bot, Download, RotateCcw, RotateCw,
-  Zap, Terminal, Eye, X, Bookmark, Keyboard, Wifi, WifiOff, Loader
+  Zap, Terminal, Eye, X, Bookmark, Keyboard, Search
 } from 'lucide-react';
 import { SnippetManager } from '@/components/snippets/SnippetManager';
 import { CodeEditor } from '@/components/editor/CodeEditor';
 import { Preview } from '@/components/editor/Preview';
 import { TabBar, Tab } from '@/components/editor/TabBar';
 import { AiWorkbench } from '@/components/ai/AiWorkbench';
+import { SearchBar } from '@/components/editor/SearchBar';
+import { DiffViewer } from '@/components/editor/DiffViewer';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { useBackendStatus } from '@/hooks/useBackendStatus';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
