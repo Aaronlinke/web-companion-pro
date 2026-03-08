@@ -123,7 +123,22 @@ const Index: React.FC = () => {
     }));
   }, [activeTabId]);
 
-  const handleApplyCode = useCallback((code: string) => updateActiveTabCode(code), [updateActiveTabCode]);
+  // AI requests go through Diff first — user must confirm before applying
+  const handleApplyCode = useCallback((code: string) => {
+    setPendingCode(code);
+  }, []);
+
+  const handleConfirmDiff = useCallback(() => {
+    if (pendingCode !== null) {
+      updateActiveTabCode(pendingCode);
+      setPendingCode(null);
+      toast.success('Code angewendet ✓');
+    }
+  }, [pendingCode, updateActiveTabCode]);
+
+  const handleCancelDiff = useCallback(() => {
+    setPendingCode(null);
+  }, []);
 
   const handleFusionComplete = useCallback((code: string, title: string) => {
     const t: Tab = { id: nextTabId, title, code, history: [code], historyIndex: 0 };
