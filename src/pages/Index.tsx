@@ -359,34 +359,51 @@ const Index: React.FC = () => {
       <main className="flex-1 overflow-hidden">
         <ResizablePanelGroup orientation="horizontal">
           <ResizablePanel defaultSize={showAi ? 40 : 50} minSize={20}>
-            <div className="h-full flex flex-col">
-              <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
-                <TerminalIcon size={12} className="text-muted-foreground" />
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{activeTab?.title}</span>
-                <div className="ml-auto flex items-center gap-2">
-                  <button
-                    onClick={() => setShowSearch(p => !p)}
-                    className={`p-1 rounded transition-colors ${showSearch ? 'text-primary bg-primary/10' : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary'}`}
-                    title="Suchen (Ctrl+F)"
-                  >
-                    <Search size={10} />
-                  </button>
-                  <span className="text-[9px] text-muted-foreground/40 font-mono">
-                    {(activeTab?.code.split('\n').length ?? 0)} lines
-                  </span>
+            <ResizablePanelGroup orientation="vertical">
+              <ResizablePanel defaultSize={showTerminal ? 65 : 100} minSize={30}>
+                <div className="h-full flex flex-col">
+                  <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
+                    <TerminalIcon size={12} className="text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{activeTab?.title}</span>
+                    <div className="ml-auto flex items-center gap-2">
+                      <button
+                        onClick={() => setShowSearch(p => !p)}
+                        className={`p-1 rounded transition-colors ${showSearch ? 'text-primary bg-primary/10' : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary'}`}
+                        title="Suchen (Ctrl+F)"
+                      >
+                        <Search size={10} />
+                      </button>
+                      <span className="text-[9px] text-muted-foreground/40 font-mono">
+                        {(activeTab?.code.split('\n').length ?? 0)} lines
+                      </span>
+                    </div>
+                  </div>
+                  {showSearch && (
+                    <SearchBar
+                      code={activeTab?.code || ''}
+                      onChange={updateActiveTabCode}
+                      onClose={() => setShowSearch(false)}
+                    />
+                  )}
+                  <div className="flex-1 overflow-hidden">
+                    <CodeEditor value={activeTab?.code || ''} onChange={updateActiveTabCode} />
+                  </div>
                 </div>
-              </div>
-              {showSearch && (
-                <SearchBar
-                  code={activeTab?.code || ''}
-                  onChange={updateActiveTabCode}
-                  onClose={() => setShowSearch(false)}
-                />
+              </ResizablePanel>
+
+              {showTerminal && (
+                <>
+                  <ResizableHandle className="h-1 bg-border hover:bg-primary/50 transition-colors" />
+                  <ResizablePanel defaultSize={35} minSize={20} maxSize={70}>
+                    <TerminalPanel
+                      code={activeTab?.code || ''}
+                      fileName={activeTab?.title || 'main'}
+                      onClose={() => setShowTerminal(false)}
+                    />
+                  </ResizablePanel>
+                </>
               )}
-              <div className="flex-1 overflow-hidden">
-                <CodeEditor value={activeTab?.code || ''} onChange={updateActiveTabCode} />
-              </div>
-            </div>
+            </ResizablePanelGroup>
           </ResizablePanel>
 
           {showPreview && (
