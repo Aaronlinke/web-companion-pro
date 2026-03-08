@@ -228,6 +228,11 @@ const Index: React.FC = () => {
             title="AI Panel (Ctrl+I)">
             <Bot size={14} />
           </button>
+          <button onClick={() => setShowTerminal(p => !p)}
+            className={`p-1.5 rounded transition-colors ${showTerminal ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            title="Terminal / Code ausführen (Ctrl+`)">
+            <TerminalIcon size={14} />
+          </button>
           <div className="w-px h-4 bg-border mx-0.5" />
         </>
       )}
