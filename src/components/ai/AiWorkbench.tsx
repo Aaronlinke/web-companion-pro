@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, Zap, Layers, Check, Loader2, Play, Copy, Sparkles } from 'lucide-react';
+import { Bot, Send, Zap, Layers, Check, Loader2, Play, Copy, Sparkles, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tab } from '@/components/editor/TabBar';
-import { streamEliteChat, extractCodeFromResponse, ChatMessage } from '@/lib/eliteAI';
+import { streamEliteChat, extractCodeFromResponse, detectLanguageFromResponse, ChatMessage } from '@/lib/eliteAI';
 import { toast } from 'sonner';
 
 export interface Agent {
@@ -14,10 +14,16 @@ export interface Agent {
 
 export const AGENTS: Agent[] = [
   { name: 'Architect', icon: '🏗️', prompt: 'Optimiere die HTML-Struktur und semantisches Markup für bessere Accessibility und SEO.', color: 'text-blue-400' },
-  { name: 'Stylist', icon: '🎨', prompt: 'Verbessere das visuelle Design mit modernem CSS, Animationen und responsiven Layouts.', color: 'text-pink-400' },
-  { name: 'Engineer', icon: '⚡', prompt: 'Verbessere JavaScript-Funktionalität, Performance und füge interaktive Features hinzu.', color: 'text-yellow-400' },
-  { name: 'Guardian', icon: '🛡️', prompt: 'Füge Security-Best-Practices, Input-Validation und Error-Handling hinzu.', color: 'text-green-400' },
+  { name: 'Stylist',   icon: '🎨', prompt: 'Verbessere das visuelle Design mit modernem CSS, Animationen und responsiven Layouts.', color: 'text-pink-400' },
+  { name: 'Engineer',  icon: '⚡', prompt: 'Verbessere JavaScript-Funktionalität, Performance und füge interaktive Features hinzu.', color: 'text-yellow-400' },
+  { name: 'Guardian',  icon: '🛡️', prompt: 'Füge Security-Best-Practices, Input-Validation und Error-Handling hinzu.', color: 'text-green-400' },
 ];
+
+const MODEL_LABELS: Record<string, { label: string; color: string }> = {
+  'google/gemini-2.5-flash-lite': { label: 'Lite', color: 'text-green-400' },
+  'google/gemini-2.5-flash':      { label: 'Flash', color: 'text-yellow-400' },
+  'google/gemini-3-flash-preview':{ label: 'Pro',  color: 'text-primary' },
+};
 
 interface AiWorkbenchProps {
   currentCode: string;
@@ -33,34 +39,52 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
   onFusionComplete,
 }) => {
   const [message, setMessage] = useState('');
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatMessages, setChatMessages] = useState<(ChatMessage & { model?: string; complexity?: string })[]>([]);
   const [selectedAgents, setSelectedAgents] = useState<number[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isFusing, setIsFusing] = useState(false);
   const [agentStatuses, setAgentStatuses] = useState<string[]>(Array(AGENTS.length).fill('ready'));
+  const [activeModel, setActiveModel] = useState<string>('');
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
+
+  // Auto-resize textarea
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessage(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+  };
 
   const handleSend = async () => {
     if (!message.trim() || isProcessing) return;
 
     const userMessage = message.trim();
     setMessage('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
     setIsProcessing(true);
+    setActiveModel('');
 
     setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
 
     let assistantResponse = '';
-    
+
     await streamEliteChat({
       messages: [
-        ...chatMessages,
+        ...chatMessages.filter(m => !m.model), // only actual chat history
         { role: 'user', content: `AKTUELLER CODE:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nANWEISUNG: ${userMessage}` }
       ],
       mode: 'chat',
+      onModelSelected: (model, complexity) => {
+        setActiveModel(model);
+        setChatMessages(prev => {
+          // Add model info to last user message
+          return prev.map((m, i) => i === prev.length - 1 ? { ...m, model, complexity } : m);
+        });
+      },
       onDelta: (delta) => {
         assistantResponse += delta;
         setChatMessages(prev => {
@@ -71,10 +95,14 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
           return [...prev, { role: 'assistant', content: assistantResponse }];
         });
       },
-      onDone: () => setIsProcessing(false),
+      onDone: () => {
+        setIsProcessing(false);
+        setActiveModel('');
+      },
       onError: (error) => {
         toast.error(error);
         setIsProcessing(false);
+        setActiveModel('');
       }
     });
   };
@@ -92,7 +120,6 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
 
   const runAgentCollaboration = async () => {
     if (selectedAgents.length === 0 || isProcessing) return;
-
     setIsProcessing(true);
     let workingCode = currentCode;
 
@@ -101,10 +128,10 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
       setAgentStatuses(prev => { const s = [...prev]; s[agentIndex] = 'thinking'; return s; });
 
       let agentResponse = '';
-      
+
       await streamEliteChat({
-        messages: [{ 
-          role: 'user', 
+        messages: [{
+          role: 'user',
           content: `AKTUELLER CODE:\n\`\`\`html\n${workingCode}\n\`\`\`\n\nAGENT-AUFGABE: ${agent.prompt}`,
           agentName: agent.name
         }],
@@ -122,7 +149,7 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
     }
 
     onApplyCode(workingCode);
-    toast.success('Agenten-Optimierung abgeschlossen');
+    toast.success(`${selectedAgents.length} Agenten fertig ✓`);
     setIsProcessing(false);
 
     setTimeout(() => {
@@ -133,7 +160,6 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
 
   const runFusion = async () => {
     if (projectTabs.length < 2 || isFusing) return;
-
     setIsFusing(true);
     let fusedCode = '';
 
@@ -146,7 +172,9 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
         const extracted = extractCodeFromResponse(fusedCode);
         if (extracted) {
           onFusionComplete(extracted, 'MASTER_FUSION.html');
-          toast.success('Fusion erfolgreich! Alle Funktionen übernommen.');
+          toast.success('Fusion abgeschlossen! Alle Funktionen vereint.');
+        } else {
+          toast.error('Fusion konnte keinen Code extrahieren.');
         }
         setIsFusing(false);
       },
@@ -161,17 +189,20 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
     const extracted = extractCodeFromResponse(text);
     if (extracted) {
       onApplyCode(extracted);
-      toast.success('Code angewendet');
+      toast.success('Code angewendet ✓');
+    } else {
+      toast.error('Kein Code-Block gefunden');
     }
   };
 
   const handleCopyCode = (text: string) => {
     const extracted = extractCodeFromResponse(text);
-    if (extracted) {
-      navigator.clipboard.writeText(extracted);
-      toast.success('Kopiert');
-    }
+    const toCopy = extracted || text;
+    navigator.clipboard.writeText(toCopy);
+    toast.success('Kopiert ✓');
   };
+
+  const modelInfo = activeModel ? MODEL_LABELS[activeModel] : null;
 
   return (
     <div className="flex flex-col h-full bg-card">
@@ -179,17 +210,24 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-secondary/30">
         <div className="flex items-center gap-2">
           <Sparkles size={12} className="text-primary" />
-          <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">AI</span>
+          <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">AI Workbench</span>
         </div>
+        {modelInfo && (
+          <div className="flex items-center gap-1">
+            <Cpu size={10} className={modelInfo.color} />
+            <span className={`text-[9px] font-mono ${modelInfo.color}`}>{modelInfo.label}</span>
+          </div>
+        )}
       </div>
 
       {/* Agents Row */}
-      <div className="flex items-center gap-1 p-2 border-b border-border bg-secondary/20">
+      <div className="flex items-center gap-1 p-2 border-b border-border bg-secondary/20 flex-wrap">
         {AGENTS.map((agent, index) => (
           <button
             key={agent.name}
             onClick={() => toggleAgent(index)}
             disabled={isProcessing || isFusing}
+            title={agent.name + ': ' + agent.prompt}
             className={`flex items-center gap-1 px-2 py-1 text-[9px] rounded transition-all ${
               selectedAgents.includes(index)
                 ? 'bg-primary/20 text-primary ring-1 ring-primary/50'
@@ -197,14 +235,15 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
             }`}
           >
             <span>{agent.icon}</span>
+            <span className="hidden sm:inline">{agent.name}</span>
             {agentStatuses[index] === 'thinking' ? (
               <Loader2 size={10} className="animate-spin" />
             ) : agentStatuses[index] === 'done' ? (
-              <Check size={10} className="text-green-500" />
+              <Check size={10} className="text-primary" />
             ) : null}
           </button>
         ))}
-        
+
         {selectedAgents.length > 0 && (
           <Button
             size="sm"
@@ -213,20 +252,20 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
             className="h-6 px-2 text-[9px] bg-primary/20 text-primary hover:bg-primary/30 ml-auto"
           >
             <Zap size={10} className="mr-1" />
-            Run
+            Run {selectedAgents.length}
           </Button>
         )}
 
-        {projectTabs.length > 1 && (
+        {projectTabs.length > 1 && selectedAgents.length === 0 && (
           <Button
             size="sm"
             variant="outline"
             onClick={runFusion}
             disabled={isFusing || isProcessing}
-            className="h-6 px-2 text-[9px] border-primary/30 text-primary hover:bg-primary/10"
+            className="h-6 px-2 text-[9px] border-primary/30 text-primary hover:bg-primary/10 ml-auto"
           >
             {isFusing ? <Loader2 size={10} className="animate-spin mr-1" /> : <Layers size={10} className="mr-1" />}
-            Fuse {projectTabs.length}
+            Fuse ({projectTabs.length})
           </Button>
         )}
       </div>
@@ -234,13 +273,33 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {chatMessages.length === 0 && (
-          <div className="text-center py-6 text-muted-foreground">
-            <Bot size={24} className="mx-auto mb-2 opacity-30" />
-            <p className="text-[10px]">Beschreibe was du brauchst</p>
+          <div className="text-center py-8 text-muted-foreground">
+            <Bot size={28} className="mx-auto mb-3 opacity-20" />
+            <p className="text-[10px] uppercase tracking-wider opacity-50">Beschreibe was du brauchst</p>
+            <div className="mt-4 space-y-1">
+              {["Füge ein Diagramm hinzu", "Mach es dunkler", "Baue einen RSA-Verschlüsseler"].map(hint => (
+                <button
+                  key={hint}
+                  onClick={() => setMessage(hint)}
+                  className="block w-full text-left px-2 py-1 text-[9px] text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded transition-colors"
+                >
+                  → {hint}
+                </button>
+              ))}
+            </div>
           </div>
         )}
         {chatMessages.map((msg, index) => (
-          <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div key={index} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+            {/* Model badge on user messages */}
+            {msg.role === 'user' && msg.model && (
+              <div className="flex items-center gap-1 mb-1">
+                <Cpu size={8} className={MODEL_LABELS[msg.model]?.color || 'text-muted-foreground'} />
+                <span className={`text-[8px] font-mono ${MODEL_LABELS[msg.model]?.color || 'text-muted-foreground'}`}>
+                  {MODEL_LABELS[msg.model]?.label || msg.model}
+                </span>
+              </div>
+            )}
             <div className={`max-w-[95%] p-2.5 rounded text-xs ${
               msg.role === 'user'
                 ? 'bg-primary/15 text-primary'
@@ -249,7 +308,7 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
               <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed overflow-x-auto">
                 {msg.content}
               </pre>
-              {msg.role === 'assistant' && extractCodeFromResponse(msg.content) && (
+              {msg.role === 'assistant' && (
                 <div className="flex gap-1 mt-2 pt-2 border-t border-border">
                   <Button
                     size="sm"
@@ -276,8 +335,13 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
         ))}
         {isProcessing && chatMessages[chatMessages.length - 1]?.role === 'user' && (
           <div className="flex justify-start">
-            <div className="bg-secondary p-2.5 rounded">
-              <Loader2 size={14} className="animate-spin text-primary" />
+            <div className="bg-secondary p-2.5 rounded flex items-center gap-2">
+              <Loader2 size={12} className="animate-spin text-primary" />
+              {activeModel && (
+                <span className="text-[9px] font-mono text-primary">
+                  {MODEL_LABELS[activeModel]?.label}...
+                </span>
+              )}
             </div>
           </div>
         )}
@@ -286,25 +350,29 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
 
       {/* Input */}
       <div className="p-2 border-t border-border">
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 items-end">
           <textarea
+            ref={textareaRef}
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleTextareaChange}
             onKeyDown={handleKeyDown}
-            placeholder="Was soll ich ändern?"
+            placeholder="Was soll ich bauen? (Enter = senden, Shift+Enter = Zeilenumbruch)"
             disabled={isProcessing}
             rows={1}
-            className="flex-1 bg-secondary border-0 text-foreground p-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-primary/50 rounded placeholder:text-muted-foreground"
+            className="flex-1 bg-secondary border-0 text-foreground p-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-primary/50 rounded placeholder:text-muted-foreground min-h-[32px] max-h-[120px]"
           />
           <Button
             onClick={handleSend}
             disabled={!message.trim() || isProcessing}
             size="sm"
-            className="bg-primary hover:bg-primary/80 text-primary-foreground px-3"
+            className="bg-primary hover:bg-primary/80 text-primary-foreground px-3 shrink-0"
           >
             {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
           </Button>
         </div>
+        <p className="text-[8px] text-muted-foreground/40 mt-1 text-center">
+          Smart routing: Lite → Flash → Pro je nach Aufgabe
+        </p>
       </div>
     </div>
   );

@@ -212,7 +212,7 @@ const Index: React.FC = () => {
             </button>
             <label className="p-1.5 text-muted-foreground">
               <FileCode size={14} />
-              <input type="file" className="hidden" accept=".html,.htm" onChange={handleFileUpload} />
+              <input type="file" className="hidden" accept=".html,.htm,.py,.ts,.tsx,.js,.jsx,.json,.sql,.md,.yaml,.yml,.css,.txt" onChange={handleFileUpload} />
             </label>
             <button onClick={handleDownload} className="p-1.5 text-muted-foreground">
               <Download size={14} />
@@ -361,7 +361,7 @@ const Index: React.FC = () => {
 
           <label className="p-1.5 text-muted-foreground hover:text-foreground cursor-pointer">
             <FileCode size={14} />
-            <input type="file" className="hidden" accept=".html,.htm" onChange={handleFileUpload} />
+            <input type="file" className="hidden" accept=".html,.htm,.py,.ts,.tsx,.js,.jsx,.json,.sql,.md,.yaml,.yml,.css,.txt" onChange={handleFileUpload} />
           </label>
           <button onClick={handleDownload} className="p-1.5 text-muted-foreground hover:text-foreground">
             <Download size={14} />

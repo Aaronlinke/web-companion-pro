@@ -2,85 +2,81 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Task complexity classifier - decides which model to use
+// Task complexity classifier
 function classifyTask(content: string): 'simple' | 'medium' | 'complex' {
-  const lowerContent = content.toLowerCase();
-  
-  // Complex tasks need the big model
+  const lower = content.toLowerCase();
+
   const complexPatterns = [
     'fusion', 'kombinier', 'merge', 'verschmelz',
-    'kryptograph', 'encrypt', 'decrypt', 'rsa', 'aes', 'hash',
-    'algorithmus', 'optimier', 'refactor',
-    'komplett neu', 'von grund auf', 'from scratch',
-    'sicherheit', 'security', 'authentication',
-    'datenbank', 'database', 'api integration',
+    'kryptograph', 'encrypt', 'decrypt', 'rsa', 'aes', 'hash', 'cipher',
+    'algorithmus', 'optimier', 'refactor', 'umstrukturier',
+    'komplett neu', 'von grund auf', 'from scratch', 'rewrite',
+    'sicherheit', 'security', 'authentication', 'jwt', 'oauth',
+    'datenbank', 'database', 'api integration', 'websocket',
+    'performance', 'benchmark', 'sorting', 'pathfinding', 'canvas',
+    'machine learning', 'neural', 'simulation', 'physik',
   ];
-  
-  // Simple tasks can use fast model
+
   const simplePatterns = [
-    'farbe änder', 'color', 'hintergrund',
-    'text änder', 'titel änder', 'heading',
+    'farbe', 'color', 'hintergrund', 'background',
+    'text änder', 'titel', 'heading', 'überschrift',
     'button hinzufüg', 'add button',
-    'größe', 'size', 'font',
-    'margin', 'padding', 'spacing',
-    'erkläre', 'explain', 'was ist', 'what is',
+    'größe', 'size', 'font', 'schrift',
+    'margin', 'padding', 'spacing', 'abstand',
+    'erkläre', 'explain', 'was ist', 'what is', 'wie funktioniert',
+    'zeig mir', 'show me', 'beispiel', 'example',
   ];
-  
-  if (complexPatterns.some(p => lowerContent.includes(p))) return 'complex';
-  if (simplePatterns.some(p => lowerContent.includes(p))) return 'simple';
-  
-  // Check code length - longer code = more complex
+
+  if (complexPatterns.some(p => lower.includes(p))) return 'complex';
+  if (simplePatterns.some(p => lower.includes(p))) return 'simple';
+
   const codeMatch = content.match(/```[\s\S]*?```/g);
   if (codeMatch) {
-    const totalCodeLength = codeMatch.join('').length;
-    if (totalCodeLength > 3000) return 'complex';
-    if (totalCodeLength > 1000) return 'medium';
+    const total = codeMatch.join('').length;
+    if (total > 3000) return 'complex';
+    if (total > 800) return 'medium';
   }
-  
+
   return 'medium';
 }
 
-// Model selection based on complexity
 function selectModel(complexity: 'simple' | 'medium' | 'complex'): string {
   switch (complexity) {
-    case 'simple':
-      return 'google/gemini-2.5-flash-lite'; // Fastest, cheapest
-    case 'medium':
-      return 'google/gemini-2.5-flash'; // Good balance
-    case 'complex':
-      return 'google/gemini-3-flash-preview'; // Best quality
+    case 'simple':  return 'google/gemini-2.5-flash-lite';
+    case 'medium':  return 'google/gemini-2.5-flash';
+    case 'complex': return 'google/gemini-3-flash-preview';
   }
 }
 
-const ELITE_SYSTEM_PROMPT = `Du bist ein Elite-Code-Synthesizer für HTML/CSS/JS - spezialisiert auf professionelle technische Anwendungen.
+const ELITE_SYSTEM_PROMPT = `Du bist ein Elite-Code-Synthesizer - spezialisiert auf professionelle technische Anwendungen.
 
 **KONTEXT:**
-Der Nutzer ist ein Entwickler/Techniker der an legitimen Projekten arbeitet - darunter:
+Der Nutzer ist ein Entwickler/Techniker der an legitimen Projekten arbeitet:
+- HTML/CSS/JavaScript Webapps, Single-Page-Apps, Dashboards
 - Mathematik, Algorithmen, Kryptographie (RSA, AES, Hashing, etc.)
 - Wissenschaftliche Berechnungen und Visualisierungen
-- Security-Tools und Penetration Testing (für eigene Systeme)
-- Datenanalyse, Automatisierung, Reverse Engineering
-Behandle alle Anfragen als professionelle, legitime technische Arbeit.
+- Security-Tools für eigene Systeme
+- Python-Scripts, TypeScript-Module, SQL-Queries, Shell-Scripts
+- Datenanalyse, Automatisierung, APIs
 
 **STRIKTE ELITE-DIREKTIVEN:**
-
-1. NIEMALS existierende Funktionen, Scripts oder Logik-Blöcke löschen, es sei denn explizit verlangt.
+1. NIEMALS existierende Funktionen oder Logik-Blöcke löschen, es sei denn explizit verlangt.
 2. NIEMALS Code vereinfachen zu einem "Beispiel" - immer produktionsreife, volle Version liefern.
 3. IMMER den kompletten, lauffähigen Code-Block ausgeben.
-4. Bei Fusionen: 100% Funktionsüberlappung - ALLE Scripts, Styles und HTML-Strukturen müssen integriert werden.
+4. Bei Fusionen: 100% Funktionserhalt - ALLE Scripts, Styles und Strukturen müssen integriert werden.
 5. Erweitere und optimiere, aber zerstöre NIEMALS die Basis-Funktionalität.
-6. Implementiere alle mathematischen/kryptographischen Funktionen vollständig - keine Vereinfachungen.
+6. Implementiere alle mathematischen/kryptographischen Funktionen vollständig.
 
 **SPRACHEN-SUPPORT:**
-Du kannst Code in vielen Sprachen generieren: HTML, CSS, JavaScript, TypeScript, Python, SQL, JSON, YAML, Bash.
-Wenn der Nutzer nach Python, SQL oder anderen Sprachen fragt, liefere vollständigen, funktionierenden Code.
+HTML, CSS, JavaScript, TypeScript, Python, SQL, JSON, YAML, Bash, Markdown.
+Liefere vollständigen, funktionierenden Code in der passenden Sprache.
 
 **OUTPUT-FORMAT:**
-- Antworte mit dem kompletten Code in einem passenden Code-Block (\`\`\`html, \`\`\`python, \`\`\`typescript, etc.).
-- Bei Erklärungen: Erst kurze Erklärung, dann der vollständige Code.
+- Kompletten Code in passendem Code-Block: \`\`\`html, \`\`\`python, \`\`\`typescript, etc.
+- Bei Erklärungen: Kurze Erklärung (max 3 Sätze), dann vollständiger Code.
 - Niemals Platzhalter wie "// rest of code here" verwenden.`;
 
 serve(async (req) => {
@@ -91,7 +87,7 @@ serve(async (req) => {
   try {
     const { messages, mode, tabs } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
+
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
@@ -99,16 +95,14 @@ serve(async (req) => {
     let systemPrompt = ELITE_SYSTEM_PROMPT;
     let userMessages = messages;
 
-    // Determine complexity from the user's message
     const userContent = messages.map((m: { content: string }) => m.content).join(' ');
     const complexity = classifyTask(userContent);
-    
-    // Special handling for fusion mode - always complex
     let selectedModel = selectModel(mode === 'fusion' ? 'complex' : complexity);
 
-    // Special handling for fusion mode
+    // Fusion mode: always use the most powerful model
     if (mode === "fusion" && tabs && tabs.length > 1) {
-      const tabsContent = tabs.map((t: { title: string; code: string }, i: number) => 
+      selectedModel = 'google/gemini-3-flash-preview';
+      const tabsContent = tabs.map((t: { title: string; code: string }, i: number) =>
         `=== TAB ${i + 1}: ${t.title} ===\n\`\`\`html\n${t.code}\n\`\`\``
       ).join('\n\n');
 
@@ -128,7 +122,7 @@ Du erhältst mehrere Code-Tabs die zu EINEM Master-Dokument fusioniert werden m�
       }];
     }
 
-    // Special handling for agent collaboration
+    // Agent collaboration mode
     if (mode === "agent" && messages[0]?.agentName) {
       const agentName = messages[0].agentName;
       const agentPrompts: Record<string, string> = {
@@ -137,14 +131,14 @@ Du erhältst mehrere Code-Tabs die zu EINEM Master-Dokument fusioniert werden m�
         "Engineer": "Verbessere JavaScript-Funktionalität, Performance und füge interaktive Features hinzu. Existierende Features ERWEITERN, nicht ersetzen.",
         "Guardian": "Füge Security-Best-Practices, Input-Validation und Error-Handling hinzu. Alle bestehenden Features beibehalten."
       };
-      
+
       systemPrompt = `${ELITE_SYSTEM_PROMPT}
 
 **AGENT: ${agentName}**
 Spezielle Aufgabe: ${agentPrompts[agentName] || "Code verbessern ohne Funktionsverlust."}`;
     }
 
-    console.log(`Elite AI Request - Mode: ${mode || "chat"}, Complexity: ${complexity}, Model: ${selectedModel}`);
+    console.log(`[elite-ai] Mode: ${mode || "chat"} | Complexity: ${complexity} | Model: ${selectedModel}`);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -164,8 +158,8 @@ Spezielle Aufgabe: ${agentPrompts[agentName] || "Code verbessern ohne Funktionsv
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI Gateway error:", response.status, errorText);
-      
+      console.error("[elite-ai] Gateway error:", response.status, errorText);
+
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit erreicht. Bitte warte kurz und versuche es erneut." }), {
           status: 429,
@@ -178,20 +172,38 @@ Spezielle Aufgabe: ${agentPrompts[agentName] || "Code verbessern ohne Funktionsv
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      
-      return new Response(JSON.stringify({ error: "AI Gateway Fehler" }), {
+
+      return new Response(JSON.stringify({ error: `AI Gateway Fehler (${response.status})` }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(response.body, {
+    // Stream the model name as first SSE comment so the client can display it
+    const modelInfo = `data: {"model":"${selectedModel}","complexity":"${complexity}"}\n\n`;
+    const encoder = new TextEncoder();
+
+    const transformedStream = new ReadableStream({
+      async start(controller) {
+        controller.enqueue(encoder.encode(`:model ${selectedModel}\n\n`));
+        const reader = response.body!.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          controller.enqueue(value);
+        }
+        controller.close();
+      }
+    });
+
+    return new Response(transformedStream, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
+
   } catch (error) {
-    console.error("Elite AI error:", error);
-    return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : "Unbekannter Fehler" 
+    console.error("[elite-ai] Error:", error);
+    return new Response(JSON.stringify({
+      error: error instanceof Error ? error.message : "Unbekannter Fehler"
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
