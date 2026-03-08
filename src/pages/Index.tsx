@@ -199,6 +199,7 @@ const Index: React.FC = () => {
     onRedo: handleRedo,
     onTogglePreview: () => setShowPreview(p => !p),
     onToggleAi: () => setShowAi(p => !p),
+    onToggleTerminal: () => setShowTerminal(p => !p),
     onNewTab: handleAddTab,
     onShowShortcuts: () => setShowShortcuts(p => !p),
     onFind: () => setShowSearch(p => !p),
