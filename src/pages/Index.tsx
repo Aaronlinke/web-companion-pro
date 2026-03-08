@@ -285,7 +285,7 @@ const Index: React.FC = () => {
           {mobileView === 'editor' ? (
             <div className="h-full flex flex-col">
               <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
-                <Terminal size={12} className="text-muted-foreground" />
+                <TerminalIcon size={12} className="text-muted-foreground" />
                 <span className="text-[10px] text-muted-foreground uppercase">{activeTab?.title}</span>
               </div>
               <div className="flex-1 overflow-hidden">
