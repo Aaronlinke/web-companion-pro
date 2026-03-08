@@ -39,14 +39,17 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
   onFusionComplete,
 }) => {
   const [message, setMessage] = useState('');
-  const [chatMessages, setChatMessages] = useState<(ChatMessage & { model?: string; complexity?: string })[]>([]);
+  const [chatMessages, setChatMessages] = useState<(ChatMessage & { model?: string; complexity?: string; timestamp?: number })[]>([]);
   const [selectedAgents, setSelectedAgents] = useState<number[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isFusing, setIsFusing] = useState(false);
   const [agentStatuses, setAgentStatuses] = useState<string[]>(Array(AGENTS.length).fill('ready'));
   const [activeModel, setActiveModel] = useState<string>('');
+  const [collapsedMessages, setCollapsedMessages] = useState<Set<number>>(new Set());
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const COLLAPSE_THRESHOLD = 600; // chars — collapse messages longer than this
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
