@@ -356,10 +356,26 @@ const Index: React.FC = () => {
               <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
                 <Terminal size={12} className="text-muted-foreground" />
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{activeTab?.title}</span>
-                <div className="ml-auto text-[9px] text-muted-foreground/40 font-mono">
-                  {(activeTab?.code.split('\n').length ?? 0)} lines
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={() => setShowSearch(p => !p)}
+                    className={`p-1 rounded transition-colors ${showSearch ? 'text-primary bg-primary/10' : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary'}`}
+                    title="Suchen (Ctrl+F)"
+                  >
+                    <Search size={10} />
+                  </button>
+                  <span className="text-[9px] text-muted-foreground/40 font-mono">
+                    {(activeTab?.code.split('\n').length ?? 0)} lines
+                  </span>
                 </div>
               </div>
+              {showSearch && (
+                <SearchBar
+                  code={activeTab?.code || ''}
+                  onChange={updateActiveTabCode}
+                  onClose={() => setShowSearch(false)}
+                />
+              )}
               <div className="flex-1 overflow-hidden">
                 <CodeEditor value={activeTab?.code || ''} onChange={updateActiveTabCode} />
               </div>
