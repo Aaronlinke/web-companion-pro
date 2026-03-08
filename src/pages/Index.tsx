@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Code2, Play, FileCode, Bot, Download, RotateCcw, RotateCw,
-  Zap, Terminal, Eye, X, Bookmark, Keyboard, Search
+  Zap, Terminal as TerminalIcon, Eye, X, Bookmark, Keyboard, Search
 } from 'lucide-react';
 import { SnippetManager } from '@/components/snippets/SnippetManager';
 import { CodeEditor } from '@/components/editor/CodeEditor';
@@ -10,6 +10,7 @@ import { TabBar, Tab } from '@/components/editor/TabBar';
 import { AiWorkbench } from '@/components/ai/AiWorkbench';
 import { SearchBar } from '@/components/editor/SearchBar';
 import { DiffViewer } from '@/components/editor/DiffViewer';
+import { Terminal } from '@/components/editor/Terminal';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { useBackendStatus } from '@/hooks/useBackendStatus';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
