@@ -355,7 +355,7 @@ const Index: React.FC = () => {
           <ResizablePanel defaultSize={showAi ? 40 : 50} minSize={20}>
             <div className="h-full flex flex-col">
               <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
-                <Terminal size={12} className="text-muted-foreground" />
+                <TerminalIcon size={12} className="text-muted-foreground" />
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{activeTab?.title}</span>
                 <div className="ml-auto flex items-center gap-2">
                   <button
