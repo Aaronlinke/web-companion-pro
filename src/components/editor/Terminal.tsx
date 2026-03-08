@@ -227,13 +227,12 @@ export const Terminal: React.FC<TerminalProps> = ({ code, fileName, onClose }) =
         <Button
           onClick={runCode}
           disabled={isRunning || !code.trim()}
-          size="sm"
-          className="w-full h-7 text-[10px] font-mono bg-primary hover:bg-primary/80 text-primary-foreground gap-2"
+          className="w-full h-10 text-xs font-mono bg-primary hover:bg-primary/80 text-primary-foreground gap-2 sm:h-7 sm:text-[10px]"
         >
           {isRunning ? (
-            <><Loader2 size={11} className="animate-spin" /> Ausführen…</>
+            <><Loader2 size={14} className="animate-spin" /> Ausführen…</>
           ) : (
-            <><Play size={11} /> Code ausführen</>
+            <><Play size={14} /> Code ausführen</>
           )}
         </Button>
       </div>
