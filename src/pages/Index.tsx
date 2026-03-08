@@ -57,6 +57,7 @@ const SHORTCUTS = [
   { keys: 'Ctrl+F', desc: 'Suchen & Ersetzen' },
   { keys: 'Ctrl+P', desc: 'Preview ein/aus' },
   { keys: 'Ctrl+I', desc: 'AI-Panel ein/aus' },
+  { keys: 'Ctrl+`', desc: 'Terminal ein/aus' },
   { keys: 'Ctrl+T', desc: 'Neuer Tab' },
   { keys: '?', desc: 'Shortcuts anzeigen' },
 ];
