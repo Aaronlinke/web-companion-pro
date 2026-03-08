@@ -6,6 +6,7 @@ interface ShortcutHandlers {
   onRedo?: () => void;
   onTogglePreview?: () => void;
   onToggleAi?: () => void;
+  onToggleTerminal?: () => void;
   onNewTab?: () => void;
   onShowShortcuts?: () => void;
   onFind?: () => void;
@@ -43,6 +44,11 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
       if (ctrl && e.key === 'i') {
         e.preventDefault();
         handlers.onToggleAi?.();
+        return;
+      }
+      if (ctrl && e.key === '`') {
+        e.preventDefault();
+        handlers.onToggleTerminal?.();
         return;
       }
       if (ctrl && e.key === 't') {

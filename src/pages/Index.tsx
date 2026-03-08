@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Code2, Play, FileCode, Bot, Download, RotateCcw, RotateCw,
-  Zap, Terminal, Eye, X, Bookmark, Keyboard, Search
+  Zap, Terminal as TerminalIcon, Eye, X, Bookmark, Keyboard, Search
 } from 'lucide-react';
 import { SnippetManager } from '@/components/snippets/SnippetManager';
 import { CodeEditor } from '@/components/editor/CodeEditor';
@@ -10,6 +10,7 @@ import { TabBar, Tab } from '@/components/editor/TabBar';
 import { AiWorkbench } from '@/components/ai/AiWorkbench';
 import { SearchBar } from '@/components/editor/SearchBar';
 import { DiffViewer } from '@/components/editor/DiffViewer';
+import { Terminal as TerminalPanel } from '@/components/editor/Terminal';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { useBackendStatus } from '@/hooks/useBackendStatus';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -56,6 +57,7 @@ const SHORTCUTS = [
   { keys: 'Ctrl+F', desc: 'Suchen & Ersetzen' },
   { keys: 'Ctrl+P', desc: 'Preview ein/aus' },
   { keys: 'Ctrl+I', desc: 'AI-Panel ein/aus' },
+  { keys: 'Ctrl+`', desc: 'Terminal ein/aus' },
   { keys: 'Ctrl+T', desc: 'Neuer Tab' },
   { keys: '?', desc: 'Shortcuts anzeigen' },
 ];
@@ -77,6 +79,7 @@ const Index: React.FC = () => {
   const [showSnippets, setShowSnippets] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showTerminal, setShowTerminal] = useState(false);
 
   // Diff state: pending code waiting for user confirmation
   const [pendingCode, setPendingCode] = useState<string | null>(null);
@@ -196,6 +199,7 @@ const Index: React.FC = () => {
     onRedo: handleRedo,
     onTogglePreview: () => setShowPreview(p => !p),
     onToggleAi: () => setShowAi(p => !p),
+    onToggleTerminal: () => setShowTerminal(p => !p),
     onNewTab: handleAddTab,
     onShowShortcuts: () => setShowShortcuts(p => !p),
     onFind: () => setShowSearch(p => !p),
@@ -225,6 +229,11 @@ const Index: React.FC = () => {
             className={`p-1.5 rounded transition-colors ${showAi ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
             title="AI Panel (Ctrl+I)">
             <Bot size={14} />
+          </button>
+          <button onClick={() => setShowTerminal(p => !p)}
+            className={`p-1.5 rounded transition-colors ${showTerminal ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            title="Terminal / Code ausführen (Ctrl+`)">
+            <TerminalIcon size={14} />
           </button>
           <div className="w-px h-4 bg-border mx-0.5" />
         </>
@@ -284,7 +293,7 @@ const Index: React.FC = () => {
           {mobileView === 'editor' ? (
             <div className="h-full flex flex-col">
               <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
-                <Terminal size={12} className="text-muted-foreground" />
+                <TerminalIcon size={12} className="text-muted-foreground" />
                 <span className="text-[10px] text-muted-foreground uppercase">{activeTab?.title}</span>
               </div>
               <div className="flex-1 overflow-hidden">
@@ -352,34 +361,51 @@ const Index: React.FC = () => {
       <main className="flex-1 overflow-hidden">
         <ResizablePanelGroup orientation="horizontal">
           <ResizablePanel defaultSize={showAi ? 40 : 50} minSize={20}>
-            <div className="h-full flex flex-col">
-              <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
-                <Terminal size={12} className="text-muted-foreground" />
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{activeTab?.title}</span>
-                <div className="ml-auto flex items-center gap-2">
-                  <button
-                    onClick={() => setShowSearch(p => !p)}
-                    className={`p-1 rounded transition-colors ${showSearch ? 'text-primary bg-primary/10' : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary'}`}
-                    title="Suchen (Ctrl+F)"
-                  >
-                    <Search size={10} />
-                  </button>
-                  <span className="text-[9px] text-muted-foreground/40 font-mono">
-                    {(activeTab?.code.split('\n').length ?? 0)} lines
-                  </span>
+            <ResizablePanelGroup orientation="vertical">
+              <ResizablePanel defaultSize={showTerminal ? 65 : 100} minSize={30}>
+                <div className="h-full flex flex-col">
+                  <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
+                    <TerminalIcon size={12} className="text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{activeTab?.title}</span>
+                    <div className="ml-auto flex items-center gap-2">
+                      <button
+                        onClick={() => setShowSearch(p => !p)}
+                        className={`p-1 rounded transition-colors ${showSearch ? 'text-primary bg-primary/10' : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary'}`}
+                        title="Suchen (Ctrl+F)"
+                      >
+                        <Search size={10} />
+                      </button>
+                      <span className="text-[9px] text-muted-foreground/40 font-mono">
+                        {(activeTab?.code.split('\n').length ?? 0)} lines
+                      </span>
+                    </div>
+                  </div>
+                  {showSearch && (
+                    <SearchBar
+                      code={activeTab?.code || ''}
+                      onChange={updateActiveTabCode}
+                      onClose={() => setShowSearch(false)}
+                    />
+                  )}
+                  <div className="flex-1 overflow-hidden">
+                    <CodeEditor value={activeTab?.code || ''} onChange={updateActiveTabCode} />
+                  </div>
                 </div>
-              </div>
-              {showSearch && (
-                <SearchBar
-                  code={activeTab?.code || ''}
-                  onChange={updateActiveTabCode}
-                  onClose={() => setShowSearch(false)}
-                />
+              </ResizablePanel>
+
+              {showTerminal && (
+                <>
+                  <ResizableHandle className="h-1 bg-border hover:bg-primary/50 transition-colors" />
+                  <ResizablePanel defaultSize={35} minSize={20} maxSize={70}>
+                    <TerminalPanel
+                      code={activeTab?.code || ''}
+                      fileName={activeTab?.title || 'main'}
+                      onClose={() => setShowTerminal(false)}
+                    />
+                  </ResizablePanel>
+                </>
               )}
-              <div className="flex-1 overflow-hidden">
-                <CodeEditor value={activeTab?.code || ''} onChange={updateActiveTabCode} />
-              </div>
-            </div>
+            </ResizablePanelGroup>
           </ResizablePanel>
 
           {showPreview && (
