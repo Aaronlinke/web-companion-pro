@@ -411,6 +411,16 @@ const Index: React.FC = () => {
         </ResizablePanelGroup>
       </main>
 
+      {/* Diff Viewer – shown when AI proposes code changes */}
+      {pendingCode !== null && activeTab && (
+        <DiffViewer
+          originalCode={activeTab.code}
+          newCode={pendingCode}
+          onConfirm={handleConfirmDiff}
+          onCancel={handleCancelDiff}
+        />
+      )}
+
       {/* Shortcuts overlay */}
       {showShortcuts && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center" onClick={() => setShowShortcuts(false)}>
