@@ -404,15 +404,15 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
             placeholder="Was soll ich bauen? (Enter = senden, Shift+Enter = Zeilenumbruch)"
             disabled={isProcessing}
             rows={1}
-            className="flex-1 bg-secondary border-0 text-foreground p-2 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-primary/50 rounded placeholder:text-muted-foreground min-h-[32px] max-h-[120px]"
+            className="flex-1 bg-secondary border-0 text-foreground p-2.5 text-sm sm:text-xs resize-none focus:outline-none focus:ring-1 focus:ring-primary/50 rounded placeholder:text-muted-foreground min-h-[40px] sm:min-h-[32px] max-h-[120px]"
           />
           <Button
             onClick={handleSend}
             disabled={!message.trim() || isProcessing}
             size="sm"
-            className="bg-primary hover:bg-primary/80 text-primary-foreground px-3 shrink-0"
+            className="bg-primary hover:bg-primary/80 text-primary-foreground px-3 shrink-0 h-10 sm:h-8 w-10 sm:w-auto"
           >
-            {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </Button>
         </div>
         <p className="text-[8px] text-muted-foreground/40 mt-1 text-center">

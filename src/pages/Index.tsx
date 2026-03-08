@@ -71,8 +71,9 @@ const Index: React.FC = () => {
   const [nextTabId, setNextTabId] = useState(2);
 
   const [isMobile, setIsMobile] = useState(false);
-  const [mobileView, setMobileView] = useState<'editor' | 'ai'>('editor');
+  const [mobileView, setMobileView] = useState<'editor' | 'ai' | 'terminal'>('editor');
   const [showMobilePreview, setShowMobilePreview] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
 
   const [showPreview, setShowPreview] = useState(true);
   const [showAi, setShowAi] = useState(true);
@@ -275,62 +276,119 @@ const Index: React.FC = () => {
   if (isMobile) {
     return (
       <div className="flex flex-col h-screen overflow-hidden bg-background">
+        {/* Mobile Header */}
         <header className="flex items-center justify-between px-3 py-2 bg-card border-b border-border shrink-0">
           <div className="flex items-center gap-2">
             <Zap size={14} className="text-primary" />
             <span className="text-xs font-bold text-primary">ELITE</span>
             <div className={`w-1.5 h-1.5 rounded-full ${statusDot.color}`} title={statusDot.title} />
           </div>
-          {headerActions(true)}
+          <div className="flex items-center gap-1">
+            {mobileView === 'editor' && (
+              <button
+                onClick={() => setShowMobileSearch(p => !p)}
+                className={`p-2 rounded transition-colors ${showMobileSearch ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
+                title="Suchen"
+              >
+                <Search size={16} />
+              </button>
+            )}
+            <button onClick={() => setShowMobilePreview(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/20 text-primary text-xs font-medium">
+              <Play size={13} /> Preview
+            </button>
+            {headerActions(true)}
+          </div>
         </header>
 
+        {/* Tab Bar */}
         <div className="px-2 py-1 bg-secondary/30 border-b border-border">
           <TabBar tabs={tabs} activeTabId={activeTabId}
             onSelectTab={setActiveTabId} onCloseTab={handleCloseTab} onAddTab={handleAddTab} />
         </div>
 
+        {/* Main Content */}
         <main className="flex-1 overflow-hidden">
-          {mobileView === 'editor' ? (
+          {mobileView === 'editor' && (
             <div className="h-full flex flex-col">
-              <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary/50 border-b border-border">
                 <TerminalIcon size={12} className="text-muted-foreground" />
                 <span className="text-[10px] text-muted-foreground uppercase">{activeTab?.title}</span>
+                <span className="text-[9px] text-muted-foreground/40 ml-auto font-mono">
+                  {activeTab?.code.split('\n').length ?? 0} lines
+                </span>
               </div>
+              {showMobileSearch && (
+                <SearchBar
+                  code={activeTab?.code || ''}
+                  onChange={updateActiveTabCode}
+                  onClose={() => setShowMobileSearch(false)}
+                />
+              )}
               <div className="flex-1 overflow-hidden">
                 <CodeEditor value={activeTab?.code || ''} onChange={updateActiveTabCode} isMobile />
               </div>
             </div>
-          ) : (
+          )}
+          {mobileView === 'ai' && (
             <AiWorkbench currentCode={activeTab?.code || ''} onApplyCode={handleApplyCode}
               projectTabs={tabs} onFusionComplete={handleFusionComplete} />
           )}
+          {mobileView === 'terminal' && (
+            <TerminalPanel
+              code={activeTab?.code || ''}
+              fileName={activeTab?.title || 'main'}
+              onClose={() => setMobileView('editor')}
+            />
+          )}
         </main>
 
+        {/* Bottom Nav — 3 tabs */}
         <nav className="flex bg-card border-t border-border shrink-0">
-          {[{ view: 'editor', icon: <Code2 size={18} />, label: 'Code' }, { view: 'ai', icon: <Bot size={18} />, label: 'AI' }].map(({ view, icon, label }) => (
-            <button key={view} onClick={() => setMobileView(view as 'editor' | 'ai')}
-              className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${mobileView === view ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}>
+          {([
+            { view: 'editor',   icon: <Code2 size={20} />,         label: 'Code' },
+            { view: 'ai',       icon: <Bot size={20} />,           label: 'AI' },
+            { view: 'terminal', icon: <TerminalIcon size={20} />,  label: 'Run' },
+          ] as const).map(({ view, icon, label }) => (
+            <button
+              key={view}
+              onClick={() => setMobileView(view)}
+              className={`flex-1 flex flex-col items-center py-3 gap-0.5 transition-colors ${
+                mobileView === view ? 'text-primary bg-primary/10' : 'text-muted-foreground'
+              }`}
+            >
               {icon}
-              <span className="text-[9px] font-medium uppercase">{label}</span>
+              <span className="text-[9px] font-medium uppercase tracking-wider">{label}</span>
             </button>
           ))}
         </nav>
 
+        {/* Mobile Preview Overlay */}
         {showMobilePreview && (
           <div className="fixed inset-0 z-50 bg-background flex flex-col">
-            <div className="flex items-center justify-between px-3 py-2 bg-card border-b border-border">
+            <div className="flex items-center justify-between px-3 py-3 bg-card border-b border-border">
               <div className="flex items-center gap-2">
                 <Play size={14} className="text-primary" />
-                <span className="text-xs font-medium">Preview</span>
+                <span className="text-sm font-medium">Preview</span>
               </div>
               <button onClick={() => setShowMobilePreview(false)} className="p-2 text-muted-foreground hover:text-foreground">
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
             <div className="flex-1 overflow-hidden">
               <Preview code={activeTab?.code || ''} />
             </div>
           </div>
+        )}
+
+        {/* Mobile Diff Viewer */}
+        {pendingCode !== null && activeTab && (
+          <DiffViewer
+            originalCode={activeTab.code}
+            newCode={pendingCode}
+            onConfirm={handleConfirmDiff}
+            onCancel={handleCancelDiff}
+          />
         )}
 
         <SnippetManager currentCode={activeTab?.code || ''} onLoadSnippet={updateActiveTabCode}
