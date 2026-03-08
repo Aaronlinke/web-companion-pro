@@ -303,50 +303,81 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
             </div>
           </div>
         )}
-        {chatMessages.map((msg, index) => (
-          <div key={index} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-            {/* Model badge on user messages */}
-            {msg.role === 'user' && msg.model && (
-              <div className="flex items-center gap-1 mb-1">
-                <Cpu size={8} className={MODEL_LABELS[msg.model]?.color || 'text-muted-foreground'} />
-                <span className={`text-[8px] font-mono ${MODEL_LABELS[msg.model]?.color || 'text-muted-foreground'}`}>
-                  {MODEL_LABELS[msg.model]?.label || msg.model}
-                </span>
+        {chatMessages.map((msg, index) => {
+          const isLong = msg.content.length > COLLAPSE_THRESHOLD;
+          const isCollapsed = isLong && collapsedMessages.has(index);
+          const toggleCollapse = () =>
+            setCollapsedMessages(prev => {
+              const n = new Set(prev);
+              n.has(index) ? n.delete(index) : n.add(index);
+              return n;
+            });
+          const timestamp = msg.timestamp
+            ? new Date(msg.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+            : null;
+
+          return (
+            <div key={index} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+              {/* Timestamp + model badge */}
+              <div className="flex items-center gap-1.5 mb-0.5">
+                {msg.role === 'user' && msg.model && (
+                  <>
+                    <Cpu size={8} className={MODEL_LABELS[msg.model]?.color || 'text-muted-foreground'} />
+                    <span className={`text-[8px] font-mono ${MODEL_LABELS[msg.model]?.color || 'text-muted-foreground'}`}>
+                      {MODEL_LABELS[msg.model]?.label || msg.model}
+                    </span>
+                  </>
+                )}
+                {timestamp && (
+                  <span className="text-[8px] text-muted-foreground/40 font-mono flex items-center gap-0.5">
+                    <Clock size={7} /> {timestamp}
+                  </span>
+                )}
               </div>
-            )}
-            <div className={`max-w-[95%] p-2.5 rounded text-xs ${
-              msg.role === 'user'
-                ? 'bg-primary/15 text-primary'
-                : 'bg-secondary text-foreground'
-            }`}>
-              <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed overflow-x-auto">
-                {msg.content}
-              </pre>
-              {msg.role === 'assistant' && (
-                <div className="flex gap-1 mt-2 pt-2 border-t border-border">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleApplyCode(msg.content)}
-                    className="text-[9px] h-6 px-2 text-primary hover:bg-primary/20"
+              <div className={`max-w-[95%] p-2.5 rounded text-xs ${
+                msg.role === 'user'
+                  ? 'bg-primary/15 text-primary'
+                  : 'bg-secondary text-foreground'
+              }`}>
+                <pre className={`whitespace-pre-wrap font-mono text-[11px] leading-relaxed overflow-x-auto ${isCollapsed ? 'max-h-36 overflow-hidden' : ''}`}>
+                  {msg.content}
+                </pre>
+                {/* Collapse/expand for long messages */}
+                {isLong && (
+                  <button
+                    onClick={toggleCollapse}
+                    className="flex items-center gap-1 mt-1 text-[9px] text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <Play size={10} className="mr-1" />
-                    Apply
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleCopyCode(msg.content)}
-                    className="text-[9px] h-6 px-2 text-muted-foreground hover:bg-secondary"
-                  >
-                    <Copy size={10} className="mr-1" />
-                    Copy
-                  </Button>
-                </div>
-              )}
+                    {isCollapsed ? <ChevronDown size={10} /> : <ChevronUp size={10} />}
+                    {isCollapsed ? 'Mehr anzeigen' : 'Weniger anzeigen'}
+                  </button>
+                )}
+                {msg.role === 'assistant' && (
+                  <div className="flex gap-1 mt-2 pt-2 border-t border-border">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleApplyCode(msg.content)}
+                      className="text-[9px] h-6 px-2 text-primary hover:bg-primary/20"
+                    >
+                      <Play size={10} className="mr-1" />
+                      Apply
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleCopyCode(msg.content)}
+                      className="text-[9px] h-6 px-2 text-muted-foreground hover:bg-secondary"
+                    >
+                      <Copy size={10} className="mr-1" />
+                      Copy
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {isProcessing && chatMessages[chatMessages.length - 1]?.role === 'user' && (
           <div className="flex justify-start">
             <div className="bg-secondary p-2.5 rounded flex items-center gap-2">
