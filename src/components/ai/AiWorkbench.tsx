@@ -215,12 +215,23 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
           <Sparkles size={12} className="text-primary" />
           <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">AI Workbench</span>
         </div>
-        {modelInfo && (
-          <div className="flex items-center gap-1">
-            <Cpu size={10} className={modelInfo.color} />
-            <span className={`text-[9px] font-mono ${modelInfo.color}`}>{modelInfo.label}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {modelInfo && (
+            <div className="flex items-center gap-1">
+              <Cpu size={10} className={modelInfo.color} />
+              <span className={`text-[9px] font-mono ${modelInfo.color}`}>{modelInfo.label}</span>
+            </div>
+          )}
+          {chatMessages.length > 0 && !isProcessing && (
+            <button
+              onClick={() => { setChatMessages([]); setCollapsedMessages(new Set()); }}
+              className="p-1 text-muted-foreground/40 hover:text-destructive rounded transition-colors"
+              title="Verlauf löschen"
+            >
+              <Trash2 size={10} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Agents Row */}
