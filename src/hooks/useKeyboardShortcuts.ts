@@ -50,6 +50,11 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
         handlers.onNewTab?.();
         return;
       }
+      if (ctrl && e.key === 'f') {
+        e.preventDefault();
+        handlers.onFind?.();
+        return;
+      }
       if (e.key === '?' && !inEditor) {
         handlers.onShowShortcuts?.();
         return;
