@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, Zap, Layers, Check, Loader2, Play, Copy, Sparkles, Cpu } from 'lucide-react';
+import { Bot, Send, Zap, Layers, Check, Loader2, Play, Copy, Sparkles, Cpu, Trash2, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tab } from '@/components/editor/TabBar';
 import { streamEliteChat, extractCodeFromResponse, detectLanguageFromResponse, ChatMessage } from '@/lib/eliteAI';
@@ -39,14 +39,17 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
   onFusionComplete,
 }) => {
   const [message, setMessage] = useState('');
-  const [chatMessages, setChatMessages] = useState<(ChatMessage & { model?: string; complexity?: string })[]>([]);
+  const [chatMessages, setChatMessages] = useState<(ChatMessage & { model?: string; complexity?: string; timestamp?: number })[]>([]);
   const [selectedAgents, setSelectedAgents] = useState<number[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isFusing, setIsFusing] = useState(false);
   const [agentStatuses, setAgentStatuses] = useState<string[]>(Array(AGENTS.length).fill('ready'));
   const [activeModel, setActiveModel] = useState<string>('');
+  const [collapsedMessages, setCollapsedMessages] = useState<Set<number>>(new Set());
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const COLLAPSE_THRESHOLD = 600; // chars — collapse messages longer than this
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -68,7 +71,7 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
     setIsProcessing(true);
     setActiveModel('');
 
-    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage, timestamp: Date.now() }]);
 
     let assistantResponse = '';
 
@@ -212,12 +215,23 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
           <Sparkles size={12} className="text-primary" />
           <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">AI Workbench</span>
         </div>
-        {modelInfo && (
-          <div className="flex items-center gap-1">
-            <Cpu size={10} className={modelInfo.color} />
-            <span className={`text-[9px] font-mono ${modelInfo.color}`}>{modelInfo.label}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {modelInfo && (
+            <div className="flex items-center gap-1">
+              <Cpu size={10} className={modelInfo.color} />
+              <span className={`text-[9px] font-mono ${modelInfo.color}`}>{modelInfo.label}</span>
+            </div>
+          )}
+          {chatMessages.length > 0 && !isProcessing && (
+            <button
+              onClick={() => { setChatMessages([]); setCollapsedMessages(new Set()); }}
+              className="p-1 text-muted-foreground/40 hover:text-destructive rounded transition-colors"
+              title="Verlauf löschen"
+            >
+              <Trash2 size={10} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Agents Row */}
@@ -289,50 +303,81 @@ export const AiWorkbench: React.FC<AiWorkbenchProps> = ({
             </div>
           </div>
         )}
-        {chatMessages.map((msg, index) => (
-          <div key={index} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-            {/* Model badge on user messages */}
-            {msg.role === 'user' && msg.model && (
-              <div className="flex items-center gap-1 mb-1">
-                <Cpu size={8} className={MODEL_LABELS[msg.model]?.color || 'text-muted-foreground'} />
-                <span className={`text-[8px] font-mono ${MODEL_LABELS[msg.model]?.color || 'text-muted-foreground'}`}>
-                  {MODEL_LABELS[msg.model]?.label || msg.model}
-                </span>
+        {chatMessages.map((msg, index) => {
+          const isLong = msg.content.length > COLLAPSE_THRESHOLD;
+          const isCollapsed = isLong && collapsedMessages.has(index);
+          const toggleCollapse = () =>
+            setCollapsedMessages(prev => {
+              const n = new Set(prev);
+              n.has(index) ? n.delete(index) : n.add(index);
+              return n;
+            });
+          const timestamp = msg.timestamp
+            ? new Date(msg.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+            : null;
+
+          return (
+            <div key={index} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+              {/* Timestamp + model badge */}
+              <div className="flex items-center gap-1.5 mb-0.5">
+                {msg.role === 'user' && msg.model && (
+                  <>
+                    <Cpu size={8} className={MODEL_LABELS[msg.model]?.color || 'text-muted-foreground'} />
+                    <span className={`text-[8px] font-mono ${MODEL_LABELS[msg.model]?.color || 'text-muted-foreground'}`}>
+                      {MODEL_LABELS[msg.model]?.label || msg.model}
+                    </span>
+                  </>
+                )}
+                {timestamp && (
+                  <span className="text-[8px] text-muted-foreground/40 font-mono flex items-center gap-0.5">
+                    <Clock size={7} /> {timestamp}
+                  </span>
+                )}
               </div>
-            )}
-            <div className={`max-w-[95%] p-2.5 rounded text-xs ${
-              msg.role === 'user'
-                ? 'bg-primary/15 text-primary'
-                : 'bg-secondary text-foreground'
-            }`}>
-              <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed overflow-x-auto">
-                {msg.content}
-              </pre>
-              {msg.role === 'assistant' && (
-                <div className="flex gap-1 mt-2 pt-2 border-t border-border">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleApplyCode(msg.content)}
-                    className="text-[9px] h-6 px-2 text-primary hover:bg-primary/20"
+              <div className={`max-w-[95%] p-2.5 rounded text-xs ${
+                msg.role === 'user'
+                  ? 'bg-primary/15 text-primary'
+                  : 'bg-secondary text-foreground'
+              }`}>
+                <pre className={`whitespace-pre-wrap font-mono text-[11px] leading-relaxed overflow-x-auto ${isCollapsed ? 'max-h-36 overflow-hidden' : ''}`}>
+                  {msg.content}
+                </pre>
+                {/* Collapse/expand for long messages */}
+                {isLong && (
+                  <button
+                    onClick={toggleCollapse}
+                    className="flex items-center gap-1 mt-1 text-[9px] text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <Play size={10} className="mr-1" />
-                    Apply
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleCopyCode(msg.content)}
-                    className="text-[9px] h-6 px-2 text-muted-foreground hover:bg-secondary"
-                  >
-                    <Copy size={10} className="mr-1" />
-                    Copy
-                  </Button>
-                </div>
-              )}
+                    {isCollapsed ? <ChevronDown size={10} /> : <ChevronUp size={10} />}
+                    {isCollapsed ? 'Mehr anzeigen' : 'Weniger anzeigen'}
+                  </button>
+                )}
+                {msg.role === 'assistant' && (
+                  <div className="flex gap-1 mt-2 pt-2 border-t border-border">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleApplyCode(msg.content)}
+                      className="text-[9px] h-6 px-2 text-primary hover:bg-primary/20"
+                    >
+                      <Play size={10} className="mr-1" />
+                      Apply
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleCopyCode(msg.content)}
+                      className="text-[9px] h-6 px-2 text-muted-foreground hover:bg-secondary"
+                    >
+                      <Copy size={10} className="mr-1" />
+                      Copy
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {isProcessing && chatMessages[chatMessages.length - 1]?.role === 'user' && (
           <div className="flex justify-start">
             <div className="bg-secondary p-2.5 rounded flex items-center gap-2">

@@ -8,6 +8,7 @@ interface ShortcutHandlers {
   onToggleAi?: () => void;
   onNewTab?: () => void;
   onShowShortcuts?: () => void;
+  onFind?: () => void;
 }
 
 export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
@@ -47,6 +48,11 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
       if (ctrl && e.key === 't') {
         e.preventDefault();
         handlers.onNewTab?.();
+        return;
+      }
+      if (ctrl && e.key === 'f') {
+        e.preventDefault();
+        handlers.onFind?.();
         return;
       }
       if (e.key === '?' && !inEditor) {

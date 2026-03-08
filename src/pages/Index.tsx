@@ -1,13 +1,15 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Code2, Play, FileCode, Bot, Download, RotateCcw, RotateCw,
-  Zap, Terminal, Eye, X, Bookmark, Keyboard, Wifi, WifiOff, Loader
+  Zap, Terminal, Eye, X, Bookmark, Keyboard, Search
 } from 'lucide-react';
 import { SnippetManager } from '@/components/snippets/SnippetManager';
 import { CodeEditor } from '@/components/editor/CodeEditor';
 import { Preview } from '@/components/editor/Preview';
 import { TabBar, Tab } from '@/components/editor/TabBar';
 import { AiWorkbench } from '@/components/ai/AiWorkbench';
+import { SearchBar } from '@/components/editor/SearchBar';
+import { DiffViewer } from '@/components/editor/DiffViewer';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { useBackendStatus } from '@/hooks/useBackendStatus';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -51,6 +53,7 @@ const SHORTCUTS = [
   { keys: 'Ctrl+S', desc: 'Datei herunterladen' },
   { keys: 'Ctrl+Z', desc: 'Rückgängig' },
   { keys: 'Ctrl+Y', desc: 'Wiederholen' },
+  { keys: 'Ctrl+F', desc: 'Suchen & Ersetzen' },
   { keys: 'Ctrl+P', desc: 'Preview ein/aus' },
   { keys: 'Ctrl+I', desc: 'AI-Panel ein/aus' },
   { keys: 'Ctrl+T', desc: 'Neuer Tab' },
@@ -73,6 +76,10 @@ const Index: React.FC = () => {
   const [showAi, setShowAi] = useState(true);
   const [showSnippets, setShowSnippets] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+
+  // Diff state: pending code waiting for user confirmation
+  const [pendingCode, setPendingCode] = useState<string | null>(null);
 
   const { status: backendStatus } = useBackendStatus();
 
@@ -117,7 +124,22 @@ const Index: React.FC = () => {
     }));
   }, [activeTabId]);
 
-  const handleApplyCode = useCallback((code: string) => updateActiveTabCode(code), [updateActiveTabCode]);
+  // AI requests go through Diff first — user must confirm before applying
+  const handleApplyCode = useCallback((code: string) => {
+    setPendingCode(code);
+  }, []);
+
+  const handleConfirmDiff = useCallback(() => {
+    if (pendingCode !== null) {
+      updateActiveTabCode(pendingCode);
+      setPendingCode(null);
+      toast.success('Code angewendet ✓');
+    }
+  }, [pendingCode, updateActiveTabCode]);
+
+  const handleCancelDiff = useCallback(() => {
+    setPendingCode(null);
+  }, []);
 
   const handleFusionComplete = useCallback((code: string, title: string) => {
     const t: Tab = { id: nextTabId, title, code, history: [code], historyIndex: 0 };
@@ -176,6 +198,7 @@ const Index: React.FC = () => {
     onToggleAi: () => setShowAi(p => !p),
     onNewTab: handleAddTab,
     onShowShortcuts: () => setShowShortcuts(p => !p),
+    onFind: () => setShowSearch(p => !p),
   });
 
   const canUndo = (activeTab?.historyIndex ?? 0) > 0;
@@ -333,10 +356,26 @@ const Index: React.FC = () => {
               <div className="flex items-center gap-2 px-3 py-1 bg-secondary/50 border-b border-border">
                 <Terminal size={12} className="text-muted-foreground" />
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{activeTab?.title}</span>
-                <div className="ml-auto text-[9px] text-muted-foreground/40 font-mono">
-                  {(activeTab?.code.split('\n').length ?? 0)} lines
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={() => setShowSearch(p => !p)}
+                    className={`p-1 rounded transition-colors ${showSearch ? 'text-primary bg-primary/10' : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary'}`}
+                    title="Suchen (Ctrl+F)"
+                  >
+                    <Search size={10} />
+                  </button>
+                  <span className="text-[9px] text-muted-foreground/40 font-mono">
+                    {(activeTab?.code.split('\n').length ?? 0)} lines
+                  </span>
                 </div>
               </div>
+              {showSearch && (
+                <SearchBar
+                  code={activeTab?.code || ''}
+                  onChange={updateActiveTabCode}
+                  onClose={() => setShowSearch(false)}
+                />
+              )}
               <div className="flex-1 overflow-hidden">
                 <CodeEditor value={activeTab?.code || ''} onChange={updateActiveTabCode} />
               </div>
@@ -371,6 +410,16 @@ const Index: React.FC = () => {
           )}
         </ResizablePanelGroup>
       </main>
+
+      {/* Diff Viewer – shown when AI proposes code changes */}
+      {pendingCode !== null && activeTab && (
+        <DiffViewer
+          originalCode={activeTab.code}
+          newCode={pendingCode}
+          onConfirm={handleConfirmDiff}
+          onCancel={handleCancelDiff}
+        />
+      )}
 
       {/* Shortcuts overlay */}
       {showShortcuts && (
