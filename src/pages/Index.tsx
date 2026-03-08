@@ -78,6 +78,7 @@ const Index: React.FC = () => {
   const [showSnippets, setShowSnippets] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showTerminal, setShowTerminal] = useState(false);
 
   // Diff state: pending code waiting for user confirmation
   const [pendingCode, setPendingCode] = useState<string | null>(null);
