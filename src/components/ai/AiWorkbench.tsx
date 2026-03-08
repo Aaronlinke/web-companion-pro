@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, Zap, Layers, Check, Loader2, Play, Copy, Sparkles, Cpu } from 'lucide-react';
+import { Bot, Send, Zap, Layers, Check, Loader2, Play, Copy, Sparkles, Cpu, Trash2, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tab } from '@/components/editor/TabBar';
 import { streamEliteChat, extractCodeFromResponse, detectLanguageFromResponse, ChatMessage } from '@/lib/eliteAI';
