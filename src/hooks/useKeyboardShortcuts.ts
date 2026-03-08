@@ -8,6 +8,7 @@ interface ShortcutHandlers {
   onToggleAi?: () => void;
   onNewTab?: () => void;
   onShowShortcuts?: () => void;
+  onFind?: () => void;
 }
 
 export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
