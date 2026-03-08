@@ -197,6 +197,7 @@ const Index: React.FC = () => {
     onToggleAi: () => setShowAi(p => !p),
     onNewTab: handleAddTab,
     onShowShortcuts: () => setShowShortcuts(p => !p),
+    onFind: () => setShowSearch(p => !p),
   });
 
   const canUndo = (activeTab?.historyIndex ?? 0) > 0;
