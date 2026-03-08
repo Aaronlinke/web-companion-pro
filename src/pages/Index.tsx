@@ -71,8 +71,9 @@ const Index: React.FC = () => {
   const [nextTabId, setNextTabId] = useState(2);
 
   const [isMobile, setIsMobile] = useState(false);
-  const [mobileView, setMobileView] = useState<'editor' | 'ai'>('editor');
+  const [mobileView, setMobileView] = useState<'editor' | 'ai' | 'terminal'>('editor');
   const [showMobilePreview, setShowMobilePreview] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
 
   const [showPreview, setShowPreview] = useState(true);
   const [showAi, setShowAi] = useState(true);
