@@ -46,6 +46,11 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
         handlers.onToggleAi?.();
         return;
       }
+      if (ctrl && e.key === '`') {
+        e.preventDefault();
+        handlers.onToggleTerminal?.();
+        return;
+      }
       if (ctrl && e.key === 't') {
         e.preventDefault();
         handlers.onNewTab?.();
