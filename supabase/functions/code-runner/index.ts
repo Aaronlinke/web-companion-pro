@@ -93,26 +93,47 @@ function formatVal(v: unknown): string {
   try { return JSON.stringify(v); } catch { return String(v); }
 }
 
-async function runViaCodex(language: string, code: string, stdin: string) {
-  const res = await fetch(CODEX_API, {
+async function runViaGodbolt(langKey: string, code: string, stdin: string) {
+  const target = GODBOLT_MAP[langKey];
+  if (!target) throw new Error(`Sprache "${langKey}" nicht in Godbolt-Map.`);
+
+  const res = await fetch(`${GODBOLT_API}/compiler/${target.compiler}/compile`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code, language, input: stdin }),
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({
+      source: code,
+      lang: target.lang,
+      options: {
+        userArguments: "",
+        executeParameters: { args: [], stdin: stdin || "" },
+        compilerOptions: { executorRequest: true, skipAsm: true },
+        filters: { execute: true },
+      },
+    }),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`Codex API ${res.status}: ${text.slice(0, 200)}`);
+    throw new Error(`Godbolt ${res.status}: ${text.slice(0, 200)}`);
   }
   const data = await res.json();
-  // Codex returns { output, error, language, info, timeStamp }
-  const stdout = (data.output || "").trim();
-  const stderr = (data.error || "").trim();
-  let combined = stdout;
-  if (stderr) combined += (combined ? "\n" : "") + "[stderr]\n" + stderr;
+  const stdoutArr = Array.isArray(data.stdout) ? data.stdout.map((s: { text: string }) => s.text).join("\n") : "";
+  const stderrArr = Array.isArray(data.stderr) ? data.stderr.map((s: { text: string }) => s.text).join("\n") : "";
+  const buildErr = Array.isArray(data.buildResult?.stderr)
+    ? data.buildResult.stderr.map((s: { text: string }) => s.text).join("\n")
+    : "";
+  const buildCode = data.buildResult?.code ?? 0;
+  const runCode = data.code ?? 0;
+
+  let combined = "";
+  if (buildErr && buildCode !== 0) combined += `[Compile Error]\n${buildErr}\n`;
+  if (stdoutArr) combined += stdoutArr;
+  if (stderrArr) combined += (combined ? "\n" : "") + "[stderr]\n" + stderrArr;
+
+  const hasError = buildCode !== 0 || runCode !== 0 || !!stderrArr;
   return {
-    output: combined || "(Kein Output)",
-    exitCode: stderr ? 1 : 0,
-    hasError: !!stderr,
+    output: combined.trim() || (hasError ? `(Prozess beendet mit Code ${runCode})` : "(Kein Output)"),
+    exitCode: runCode,
+    hasError,
   };
 }
 
