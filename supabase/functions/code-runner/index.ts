@@ -179,11 +179,11 @@ serve(async (req) => {
       };
     } else {
       try {
-        result = await runViaCodex(lang, code, stdin);
+        result = await runViaGodbolt(lang, code, stdin);
       } catch (e) {
-        console.error("[code-runner] Codex failed:", e);
+        console.error("[code-runner] Godbolt failed:", e);
         return new Response(JSON.stringify({
-          error: `Externe Ausführungs-Engine derzeit nicht erreichbar. JS/TS funktionieren weiterhin lokal. Details: ${e instanceof Error ? e.message : String(e)}`,
+          error: `Externe Ausführungs-Engine derzeit nicht erreichbar. JavaScript/TypeScript funktionieren weiterhin lokal. Details: ${e instanceof Error ? e.message : String(e)}`,
         }), {
           status: 502,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
