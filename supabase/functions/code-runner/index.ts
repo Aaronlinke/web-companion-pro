@@ -38,8 +38,10 @@ const DISPLAY_NAME: Record<string, string> = {
 function detectLanguageHint(code: string, hint?: string): string | null {
   if (hint) {
     const n = hint.toLowerCase().replace(/[^a-z+#]/g, "");
-    if (CODEX_LANG_MAP[n]) return CODEX_LANG_MAP[n];
+    if (n === "javascript" || n === "js") return "js";
+    if (n === "typescript" || n === "ts" || n === "deno") return "deno";
     if (n === "bash" || n === "shell" || n === "sh") return "bash";
+    if (GODBOLT_MAP[n]) return n;
   }
   if (code.includes("def ") || code.includes("print(")) return "py";
   if (code.includes("fn main()")) return "rs";
