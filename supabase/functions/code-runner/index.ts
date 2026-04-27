@@ -5,30 +5,34 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Free public execution engines (no API key required as of 2026)
-// Primary: codex.jaagrav.in (free, supports many languages)
-// Fallback: emkc Piston mirror if available
-const CODEX_API = "https://api.codex.jaagrav.in";
+// Free execution engine: Godbolt Compiler Explorer (no API key, public).
+const GODBOLT_API = "https://godbolt.org/api";
 
-// Codex-supported language codes
-const CODEX_LANG_MAP: Record<string, string> = {
-  python: "py", py: "py",
-  javascript: "js", js: "js",
-  typescript: "js", ts: "js", // run TS as JS (after stripping types) – fallback
-  cpp: "cpp", "c++": "cpp",
-  c: "c",
-  java: "java",
-  go: "go",
-  rust: "rs",
-  ruby: "rb", rb: "rb",
-  php: "php",
-  csharp: "cs", cs: "cs",
+// Map language hint → Godbolt compiler ID + lang slug
+const GODBOLT_MAP: Record<string, { compiler: string; lang: string }> = {
+  python:     { compiler: "python310",  lang: "python" },
+  py:         { compiler: "python310",  lang: "python" },
+  cpp:        { compiler: "g142",       lang: "c++"    },
+  "c++":      { compiler: "g142",       lang: "c++"    },
+  c:          { compiler: "cg142",      lang: "c"      },
+  rust:       { compiler: "r1740",      lang: "rust"   },
+  rs:         { compiler: "r1740",      lang: "rust"   },
+  go:         { compiler: "gl1221",     lang: "go"     },
+  java:       { compiler: "java2100",   lang: "java"   },
+  csharp:     { compiler: "dotnet80csharpcoreclr", lang: "csharp" },
+  cs:         { compiler: "dotnet80csharpcoreclr", lang: "csharp" },
+  ruby:       { compiler: "ruby332",    lang: "ruby"   },
+  rb:         { compiler: "ruby332",    lang: "ruby"   },
+  php:        { compiler: "php830",     lang: "php"    },
+  swift:      { compiler: "swift590",   lang: "swift"  },
+  kotlin:     { compiler: "kotlinc1920", lang: "kotlin" },
 };
 
 const DISPLAY_NAME: Record<string, string> = {
-  py: "Python", js: "JavaScript/TypeScript", cpp: "C++", c: "C",
-  java: "Java", go: "Go", rs: "Rust", rb: "Ruby", php: "PHP", cs: "C#",
-  bash: "Bash (lokal)", deno: "TypeScript (Deno lokal)",
+  py: "Python", js: "JavaScript", deno: "TypeScript (Deno lokal)",
+  cpp: "C++", c: "C", java: "Java", go: "Go", rs: "Rust",
+  rb: "Ruby", php: "PHP", cs: "C#", swift: "Swift", kotlin: "Kotlin",
+  bash: "Bash",
 };
 
 function detectLanguageHint(code: string, hint?: string): string | null {
