@@ -5,89 +5,136 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const PISTON_API = "https://emkc.org/api/v2/piston";
+// Free execution engine: Godbolt Compiler Explorer (no API key, public).
+const GODBOLT_API = "https://godbolt.org/api";
 
-// Language alias mapping → Piston language + version pattern
-const LANGUAGE_MAP: Record<string, { language: string; version: string; fileName: string }> = {
-  python:     { language: "python",     version: "3.10.0",  fileName: "main.py" },
-  py:         { language: "python",     version: "3.10.0",  fileName: "main.py" },
-  javascript: { language: "javascript", version: "18.15.0", fileName: "main.js" },
-  js:         { language: "javascript", version: "18.15.0", fileName: "main.js" },
-  typescript: { language: "typescript", version: "5.0.3",   fileName: "main.ts" },
-  ts:         { language: "typescript", version: "5.0.3",   fileName: "main.ts" },
-  bash:       { language: "bash",       version: "5.2.0",   fileName: "main.sh" },
-  shell:      { language: "bash",       version: "5.2.0",   fileName: "main.sh" },
-  sh:         { language: "bash",       version: "5.2.0",   fileName: "main.sh" },
-  rust:       { language: "rust",       version: "1.68.2",  fileName: "main.rs" },
-  go:         { language: "go",         version: "1.20.3",  fileName: "main.go" },
-  c:          { language: "c",          version: "10.2.0",  fileName: "main.c" },
-  cpp:        { language: "c++",        version: "10.2.0",  fileName: "main.cpp" },
-  java:       { language: "java",       version: "15.0.2",  fileName: "Main.java" },
-  ruby:       { language: "ruby",       version: "3.0.1",   fileName: "main.rb" },
-  php:        { language: "php",        version: "8.2.3",   fileName: "main.php" },
-  lua:        { language: "lua",        version: "5.4.4",   fileName: "main.lua" },
-  r:          { language: "r",          version: "4.1.1",   fileName: "main.r" },
-  kotlin:     { language: "kotlin",     version: "1.8.20",  fileName: "main.kt" },
-  swift:      { language: "swift",      version: "5.8.1",   fileName: "main.swift" },
-  csharp:     { language: "c#",         version: "6.12.0",  fileName: "main.cs" },
-  cs:         { language: "c#",         version: "6.12.0",  fileName: "main.cs" },
+// Map language hint → Godbolt compiler ID + lang slug
+const GODBOLT_MAP: Record<string, { compiler: string; lang: string }> = {
+  python:     { compiler: "python310",  lang: "python" },
+  py:         { compiler: "python310",  lang: "python" },
+  cpp:        { compiler: "g142",       lang: "c++"    },
+  "c++":      { compiler: "g142",       lang: "c++"    },
+  c:          { compiler: "cg142",      lang: "c"      },
+  rust:       { compiler: "r1740",      lang: "rust"   },
+  rs:         { compiler: "r1740",      lang: "rust"   },
+  go:         { compiler: "gl1221",     lang: "go"     },
+  java:       { compiler: "java2100",   lang: "java"   },
+  csharp:     { compiler: "dotnet80csharpcoreclr", lang: "csharp" },
+  cs:         { compiler: "dotnet80csharpcoreclr", lang: "csharp" },
+  ruby:       { compiler: "ruby332",    lang: "ruby"   },
+  rb:         { compiler: "ruby332",    lang: "ruby"   },
+  php:        { compiler: "php830",     lang: "php"    },
+  swift:      { compiler: "swift590",   lang: "swift"  },
+  kotlin:     { compiler: "kotlinc1920", lang: "kotlin" },
 };
 
-function detectLanguage(code: string, hint?: string): { language: string; version: string; fileName: string } | null {
+const DISPLAY_NAME: Record<string, string> = {
+  py: "Python", js: "JavaScript", deno: "TypeScript (Deno lokal)",
+  cpp: "C++", c: "C", java: "Java", go: "Go", rs: "Rust",
+  rb: "Ruby", php: "PHP", cs: "C#", swift: "Swift", kotlin: "Kotlin",
+  bash: "Bash",
+};
+
+function detectLanguageHint(code: string, hint?: string): string | null {
   if (hint) {
-    const normalized = hint.toLowerCase().replace(/[^a-z+#]/g, '');
-    if (LANGUAGE_MAP[normalized]) return LANGUAGE_MAP[normalized];
+    const n = hint.toLowerCase().replace(/[^a-z+#]/g, "");
+    if (n === "javascript" || n === "js") return "js";
+    if (n === "typescript" || n === "ts" || n === "deno") return "deno";
+    if (n === "bash" || n === "shell" || n === "sh") return "bash";
+    if (GODBOLT_MAP[n]) return n;
   }
-
-  // Auto-detect from code patterns
-  if (code.includes("def ") || code.includes("import ") && code.includes(":") || code.includes("print(")) {
-    return LANGUAGE_MAP["python"];
-  }
-  if (code.includes("fn main()") && code.includes("let ")) return LANGUAGE_MAP["rust"];
-  if (code.includes("func main()") || code.includes("package main")) return LANGUAGE_MAP["go"];
-  if (code.includes("public static void main") || code.includes("System.out.println")) return LANGUAGE_MAP["java"];
-  if (code.includes("<?php") || code.includes("echo ")) return LANGUAGE_MAP["php"];
-  if (code.includes("#!/bin/bash") || code.includes("#!/bin/sh") || (code.includes("echo ") && !code.includes("console"))) {
-    return LANGUAGE_MAP["bash"];
-  }
-  if (code.includes(": string") || code.includes(": number") || code.includes("interface ") || code.includes("const ") && code.includes(": ")) {
-    return LANGUAGE_MAP["typescript"];
-  }
-  if (code.includes("console.log") || code.includes("const ") || code.includes("let ") || code.includes("function ")) {
-    return LANGUAGE_MAP["javascript"];
-  }
-
+  if (code.includes("def ") || code.includes("print(")) return "py";
+  if (code.includes("fn main()")) return "rs";
+  if (code.includes("package main")) return "go";
+  if (code.includes("public static void main")) return "java";
+  if (code.includes("<?php")) return "php";
+  if (code.includes("#!/bin/bash") || code.includes("#!/bin/sh")) return "bash";
+  if (code.includes("interface ") || /:\s*(string|number|boolean)/.test(code)) return "deno";
+  if (code.includes("console.log") || code.includes("function ") || code.includes("=>")) return "js";
   return null;
 }
 
-// Fetch available runtimes once and cache
-let cachedRuntimes: Array<{ language: string; version: string }> | null = null;
+// Run JS/TS locally inside Deno (sandboxed: no net, no fs by default in eval scope)
+async function runJsLocal(code: string, stdin: string, isTs: boolean): Promise<{ output: string; exitCode: number; hasError: boolean }> {
+  const logs: string[] = [];
+  const errs: string[] = [];
 
-async function getRuntimes() {
-  if (cachedRuntimes) return cachedRuntimes;
-  try {
-    const res = await fetch(`${PISTON_API}/runtimes`);
-    if (res.ok) {
-      cachedRuntimes = await res.json();
-    }
-  } catch {
-    cachedRuntimes = [];
+  const sandboxConsole = {
+    log: (...a: unknown[]) => logs.push(a.map(formatVal).join(" ")),
+    error: (...a: unknown[]) => errs.push(a.map(formatVal).join(" ")),
+    warn: (...a: unknown[]) => logs.push("[warn] " + a.map(formatVal).join(" ")),
+    info: (...a: unknown[]) => logs.push(a.map(formatVal).join(" ")),
+  };
+
+  // Strip TS types crudely if marked as TS
+  let src = code;
+  if (isTs) {
+    src = src
+      .replace(/^\s*(import|export)\s+type\s+[^;]+;?$/gm, "")
+      .replace(/(\:\s*[A-Za-z_$][\w$<>,\[\]\s|&]*)\s*(?=[=,)\]}])/g, "")
+      .replace(/\bas\s+[A-Za-z_$][\w$<>,\[\]\s|&]*/g, "")
+      .replace(/\binterface\s+\w+\s*\{[^}]*\}/g, "")
+      .replace(/\btype\s+\w+\s*=\s*[^;]+;/g, "");
   }
-  return cachedRuntimes || [];
+
+  try {
+    const fn = new Function("console", "stdin", `return (async () => { ${src}\n })();`);
+    await fn(sandboxConsole, stdin);
+    const output = [...logs, ...(errs.length ? ["[stderr]", ...errs] : [])].join("\n");
+    return { output: output || "(Kein Output)", exitCode: 0, hasError: errs.length > 0 };
+  } catch (e) {
+    const msg = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack ?? ""}` : String(e);
+    return { output: [...logs, "[stderr]", msg].join("\n"), exitCode: 1, hasError: true };
+  }
 }
 
-async function findBestVersion(targetLang: string, preferredVersion: string): Promise<string> {
-  const runtimes = await getRuntimes();
-  const matches = runtimes.filter(r => r.language.toLowerCase() === targetLang.toLowerCase());
-  if (matches.length === 0) return preferredVersion;
+function formatVal(v: unknown): string {
+  if (typeof v === "string") return v;
+  try { return JSON.stringify(v); } catch { return String(v); }
+}
 
-  // Prefer exact version, else use latest available
-  const exact = matches.find(r => r.version === preferredVersion);
-  if (exact) return exact.version;
+async function runViaGodbolt(langKey: string, code: string, stdin: string) {
+  const target = GODBOLT_MAP[langKey];
+  if (!target) throw new Error(`Sprache "${langKey}" nicht in Godbolt-Map.`);
 
-  // Sort descending and pick latest
-  matches.sort((a, b) => b.version.localeCompare(a.version, undefined, { numeric: true }));
-  return matches[0].version;
+  const res = await fetch(`${GODBOLT_API}/compiler/${target.compiler}/compile`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({
+      source: code,
+      lang: target.lang,
+      options: {
+        userArguments: "",
+        executeParameters: { args: [], stdin: stdin || "" },
+        compilerOptions: { executorRequest: true, skipAsm: true },
+        filters: { execute: true },
+      },
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Godbolt ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  const stdoutArr = Array.isArray(data.stdout) ? data.stdout.map((s: { text: string }) => s.text).join("\n") : "";
+  const stderrArr = Array.isArray(data.stderr) ? data.stderr.map((s: { text: string }) => s.text).join("\n") : "";
+  const buildErr = Array.isArray(data.buildResult?.stderr)
+    ? data.buildResult.stderr.map((s: { text: string }) => s.text).join("\n")
+    : "";
+  const buildCode = data.buildResult?.code ?? 0;
+  const runCode = data.code ?? 0;
+
+  let combined = "";
+  if (buildErr && buildCode !== 0) combined += `[Compile Error]\n${buildErr}\n`;
+  if (stdoutArr) combined += stdoutArr;
+  if (stderrArr) combined += (combined ? "\n" : "") + "[stderr]\n" + stderrArr;
+
+  const hasError = buildCode !== 0 || runCode !== 0 || !!stderrArr;
+  return {
+    output: combined.trim() || (hasError ? `(Prozess beendet mit Code ${runCode})` : "(Kein Output)"),
+    exitCode: runCode,
+    hasError,
+  };
 }
 
 serve(async (req) => {
@@ -105,11 +152,10 @@ serve(async (req) => {
       });
     }
 
-    const langDef = detectLanguage(code, langHint);
-
-    if (!langDef) {
+    const lang = detectLanguageHint(code, langHint);
+    if (!lang) {
       return new Response(JSON.stringify({
-        error: "Sprache konnte nicht erkannt werden. Unterstützte Sprachen: Python, JavaScript, TypeScript, Bash, Rust, Go, C, C++, Java, PHP, Ruby, Lua, R, Kotlin, Swift, C#",
+        error: "Sprache nicht erkannt. Unterstützt: Python, JavaScript, TypeScript, C, C++, Java, Go, Rust, Ruby, PHP, C#.",
         detected: false,
       }), {
         status: 422,
@@ -117,71 +163,43 @@ serve(async (req) => {
       });
     }
 
-    // Get best matching version from Piston
-    const bestVersion = await findBestVersion(langDef.language, langDef.version);
+    console.log(`[code-runner] lang=${lang} length=${code.length}`);
 
-    console.log(`[code-runner] Executing ${langDef.language}@${bestVersion}, code length: ${code.length}`);
+    let result: { output: string; exitCode: number; hasError: boolean };
 
-    const pistonPayload = {
-      language: langDef.language,
-      version: bestVersion,
-      files: [{ name: langDef.fileName, content: code }],
-      stdin: stdin || "",
-      args: [],
-      compile_timeout: 10000,
-      run_timeout: 10000,
-      compile_memory_limit: -1,
-      run_memory_limit: -1,
-    };
-
-    const pistonRes = await fetch(`${PISTON_API}/execute`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(pistonPayload),
-    });
-
-    if (!pistonRes.ok) {
-      const errText = await pistonRes.text();
-      console.error("[code-runner] Piston error:", pistonRes.status, errText);
-      return new Response(JSON.stringify({
-        error: `Ausführungs-Engine nicht verfügbar (${pistonRes.status}). Bitte später erneut versuchen.`,
-      }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (lang === "js") {
+      result = await runJsLocal(code, stdin, false);
+    } else if (lang === "deno") {
+      result = await runJsLocal(code, stdin, true);
+    } else if (lang === "bash") {
+      result = {
+        output: "(Bash-Ausführung wird in dieser Umgebung nicht unterstützt. Bitte JS/TS oder eine andere Sprache verwenden.)",
+        exitCode: 1,
+        hasError: true,
+      };
+    } else {
+      try {
+        result = await runViaGodbolt(lang, code, stdin);
+      } catch (e) {
+        console.error("[code-runner] Godbolt failed:", e);
+        return new Response(JSON.stringify({
+          error: `Externe Ausführungs-Engine derzeit nicht erreichbar. JavaScript/TypeScript funktionieren weiterhin lokal. Details: ${e instanceof Error ? e.message : String(e)}`,
+        }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
-    const result = await pistonRes.json();
-
-    const compile = result.compile || null;
-    const run = result.run || {};
-
-    const compileOutput = compile?.output?.trim() || "";
-    const compileStderr = compile?.stderr?.trim() || "";
-    const stdout = run.stdout?.trim() || "";
-    const stderr = run.stderr?.trim() || "";
-    const exitCode = run.code ?? 0;
-
-    // Combine all outputs
-    let output = "";
-    if (compileStderr) output += `[Compile Error]\n${compileStderr}\n`;
-    if (compileOutput) output += `[Compile Output]\n${compileOutput}\n`;
-    if (stdout) output += stdout;
-    if (stderr) output += `\n[stderr]\n${stderr}`;
-    if (!output.trim() && exitCode === 0) output = "(Kein Output)";
-    if (!output.trim() && exitCode !== 0) output = `(Prozess beendet mit Code ${exitCode})`;
-
     return new Response(JSON.stringify({
-      output: output.trim(),
-      exitCode,
-      language: langDef.language,
-      version: bestVersion,
+      output: result.output,
+      exitCode: result.exitCode,
+      language: DISPLAY_NAME[lang] ?? lang,
       detected: !langHint,
-      hasError: exitCode !== 0 || !!compileStderr,
+      hasError: result.hasError,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-
   } catch (error) {
     console.error("[code-runner] Error:", error);
     return new Response(JSON.stringify({
